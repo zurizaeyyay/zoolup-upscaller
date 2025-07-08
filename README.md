@@ -2,6 +2,7 @@ Usage:
 
 Prerequistites:
 - Install python and the packages in requirments.txt
+- Ensure you have CUDA installed and running correctly (optional but CPU upscalling will be slow)
 - Install [REAL-ESREGAN](https://github.com/zurizaeyyay/Real-ESRGAN) or I recommend copying that repo into the root
 
 CLI:
