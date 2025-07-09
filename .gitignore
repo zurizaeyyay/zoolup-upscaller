@@ -4,6 +4,7 @@ new_IMG_1629.JPG
 oldgui.py
 RealESRGAN_weights-20250702T105314Z-1-001.zip
 Real-ESRGAN
+weights/
 run_upscaller.bat
 index.html
 gui_test.py

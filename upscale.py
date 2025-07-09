@@ -5,9 +5,10 @@ import tarfile
 import sys
 import os
 from io import BytesIO
-from util_file import download_new_weights, import_model
+from util_file import import_model
 
 
+# Directory to store model weights. Set to app root/weights
 WEIGHTS_DIR = "weights"
 
 # Accepted image formats for the model
@@ -23,6 +24,7 @@ class ModelManager:
     def initialize_model(self, scale="2"):
         if self.model is not None and self.current_scale == scale:
             return  # Already initialized with correct scale
+        
             
         import torch
         import_model()
@@ -46,35 +48,10 @@ class ModelManager:
         print(f"Model loaded with scale x{scale}")
     
     def _get_weights_path(self, scale):
-        weight_filename = os.path.join(WEIGHTS_DIR, f"RealESRGAN_x{scale}.pth")
-        
-        # Download if missing or corrupted
-        if not os.path.exists(weight_filename) or os.path.getsize(weight_filename) == 0:
-            if os.path.exists(weight_filename):
-                os.remove(weight_filename)
-            self._download_weights(scale, weight_filename)
-            
-        return weight_filename
+        """Get the path where weights should be stored"""
+        return os.path.join(WEIGHTS_DIR, f"RealESRGAN_x{scale}.pth")
        
-    def _download_weights(self, scale, weight_filename):
-        print(f"Downloading weights for x{scale} model...")
-        
-        fileIndex = {"2": 0, "4": 1, "8": 2}.get(scale)
-        if fileIndex is None:
-            raise ValueError(f"Unsupported scale: {scale}")
-        
-        try:
-            download_new_weights(fileIndex, weight_filename)
-            
-            # Verify download
-            if not os.path.exists(weight_filename) or os.path.getsize(weight_filename) == 0:
-                raise Exception("Download failed or file is empty")
-                
-        except Exception as e:
-            if os.path.exists(weight_filename):
-                os.remove(weight_filename)
-            raise Exception(f"Failed to download weights: {e}")
-    
+       
     def predict(self, image_input):
         if self.model is None:
             raise RuntimeError("Model not initialized. Call initialize_model() first.")

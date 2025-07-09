@@ -3,13 +3,11 @@ import numpy as np
 from PIL import Image
 import os
 from io import BytesIO
-import streamlit as st
-
 
 # Accepted image formats for the model
 IMAGE_FORMATS = ('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')
 
-@st.cache_data
+
 def process_byte_input(uploaded_file):
     """
     Process an uploaded file (in bytes) and return a PIL Image.
@@ -41,14 +39,32 @@ def file_select_dialog():
     file_path = filedialog.askopenfilename()
     return file_path
 
-URL = "https://drive.google.com/drive/folders/16PlVKhTNkSyWFx52RPb2hXPIQveNGbxS"
-
 def import_model():
-    realesrgan_path = os.path.join(os.path.dirname(__file__), 'Real-ESRGAN')
-    if realesrgan_path not in sys.path:
-        sys.path.insert(0, realesrgan_path)
+    try:
+        # Try importing RealESRGAN as a pip-installed package
+        import RealESRGAN
+        print("RealESRGAN imported from pip installation.")
+    except ImportError:
+        # Fall back to local directory import
+        realesrgan_path = os.path.join(os.path.dirname(__file__), 'Real-ESRGAN')
+        if realesrgan_path not in sys.path:
+            sys.path.insert(0, realesrgan_path)
+        try:
+            import RealESRGAN
+            print("RealESRGAN imported from local directory.")
+        except ImportError:
+            raise ImportError("RealESRGAN not found. Please install it via pip or place it in the 'Real-ESRGAN' directory.")
 
-def download_new_weights(fileinx, dest):
+
+
+# NOTE: Only works for small files. Use huggingface if possible
+def download_gdrive_weights(URL, fileinx, dest):
+    """ Download a file from Google Drive using its file ID.
+    Args:
+        URL (str): The base URL for Google Drive file downloads.
+        fileinx (str): The file ID from Google Drive.
+        dest (str): The destination path where the file will be saved.
+    """
     import sys
     import requests
     
