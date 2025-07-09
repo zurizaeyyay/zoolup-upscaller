@@ -25,20 +25,27 @@ class ModelManager:
     def __init__(self):
         self.model = None
         self.current_scale = None
+        self.current_resample_mode = None
         self.device = None
         
     
-    def initialize_model(self, scale="2"):
-        if self.model is not None and self.current_scale == scale:
-            return  # Already initialized with correct scale
+    def initialize_model(self, scale="2", use_attention=False, resample_mode='bicubic'):
+        # Check if we need to reinitialize due to different parameters
+        needs_reinit = (
+            self.model is None or 
+            self.current_scale != scale or 
+            self.current_resample_mode != resample_mode
+        )
         
+        if not needs_reinit:
+            return  # Already initialized with correct parameters
             
         import torch
         import_model()
         
         from RealESRGAN import RealESRGAN
         
-        print(f'Initializing model with scale x{scale}...')
+        print(f'Initializing model with scale x{scale}, resample mode: {resample_mode}...')
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print('Device:', self.device)
         
@@ -48,17 +55,30 @@ class ModelManager:
         weights_path = self._get_weights_path(scale)
         
         # Load model
-        self.model = RealESRGAN(self.device, scale=int(scale))
+        self.model = RealESRGAN(self.device, scale=int(scale), use_attention=use_attention, resample_mode=resample_mode)
         self.model.load_weights(weights_path)
         self.current_scale = scale
+        self.current_resample_mode = resample_mode
         
-        print(f"Model loaded with scale x{scale}")
+        print(f"Model loaded with scale x{scale}, resample mode: {resample_mode}")
     
     def _get_weights_path(self, scale):
         """Get the path where weights should be stored"""
         return os.path.join(WEIGHTS_DIR, f"RealESRGAN_x{scale}.pth")
        
-       
+    def update_resample_mode(self, resample_mode):
+        """Update resample mode without reinitializing the entire model"""
+        if self.model is not None:
+            self.model.set_resample_mode(resample_mode)
+            self.current_resample_mode = resample_mode
+        else:
+            print("Model not initialized. Call initialize_model() first.")
+    
+    def get_available_resample_modes(self):
+        """Get list of available resample modes"""
+        return ['nearest', 'linear', 'bilinear', 'bicubic', 'trilinear', 'area', 'nearest-exact']
+    
+    
     def predict(self, image_input):
         if self.model is None:
             raise RuntimeError("Model not initialized. Call initialize_model() first.")

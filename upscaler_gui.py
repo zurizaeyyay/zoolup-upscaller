@@ -13,6 +13,16 @@ MAX_NODES = 5
 FACTORS = ["x2", "x4", "x8"]
 imageDimmingFactorDefault = 2.0 
 IMAGE_FORMATS = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif']
+resample_modes = ['nearest', 'linear', 'bilinear', 'bicubic', 'trilinear','nearest-exact']
+resample_descriptions = {
+    'nearest': 'Nearest Neighbor - Fast',
+    'linear': 'Linear - Basic interpolation',
+    'bilinear': 'Bilinear - Smooth interpolation',
+    'bicubic': 'Bicubic - High quality, smooth (recommended). Not good for fine line or text',
+    'trilinear': 'Trilinear - 3D interpolation',
+    'nearest-exact': 'Nearest Neighbor Exact Strictly better nearest neighbor'
+}
+
 
 
 about_md = """
@@ -28,19 +38,32 @@ st.set_page_config(
    initial_sidebar_state="auto",
    #menu_items= {'About': about_md}
 )
+st.title("🖼️ Image Upscaler")
+st.write("Upload an image to upscale using RealESRGAN")
 
-st.write("Welcome to the Image Upscaler GUI!")
-
-st.sidebar.title("Image Upscaler")
-st.sidebar.write("TODO: Add options additional options and author details/links.")
-imageDimmingFactor = st.sidebar.slider(
-    "Image Dimming Factor",
-    min_value=1.0,
-    max_value=5.0,
-    value=imageDimmingFactorDefault,
-    step=0.1
-)
-st.sidebar.checkbox("Show Image Progress", value=True, key="show_progress")
+# Sidebar for settings
+with st.sidebar:
+    st.header("⚙️ Settings")
+    st.sidebar.title("Image Upscaler")
+    st.sidebar.write("TODO: Add options additional options and author details/links.")
+    imageDimmingFactor = st.sidebar.slider(
+        "Image Dimming Factor",
+        min_value=1.0,
+        max_value=5.0,
+        value=imageDimmingFactorDefault,
+        step=0.1
+    )
+    st.sidebar.checkbox("Show Image Progress", value=True, key="show_progress")
+    #resample mode selection widget
+    selected_mode = st.selectbox(
+        "Resample Mode",
+        placeholder="Select an interpolation method",
+        options=resample_modes,
+        index=None,  # Default to bicubic
+        format_func=lambda x: f"{resample_descriptions[x]}",
+        help="Choose the interpolation method for upscaling"
+    )
+    st.session_state['resample_mode'] = selected_mode
 
 left_column, right_column = st.columns([0.5, 0.5], gap="medium")
 
@@ -143,7 +166,6 @@ def build_filename():
         new_filename = f"{name_without_ext} ({factors_str}).{extension}"
     
     st.session_state['output_upscaled_filename'] = new_filename
-    
 
 def upscale_callback(uploaded_img):
     if uploaded_img is not None:
@@ -159,11 +181,15 @@ def upscale_callback(uploaded_img):
         unique_scales = set(selected_scales)
         print(f"Selected scales: {selected_scales} and unique scales: {unique_scales}")
         
+        current_resample = st.session_state.get('resample_mode')
+        
         # Initialize model manager
         models = {}
         for i, scale in enumerate(selected_scales):
             models[scale] = get_model_manager()
-            models[scale].initialize_model(scale)
+            models[scale].initialize_model(scale=scale,
+                                           use_attention=False,
+                                           resample_mode=current_resample)
         
         # Upscale the image
         # Create progress tracking

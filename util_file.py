@@ -78,20 +78,16 @@ def file_select_dialog():
     return file_path
 
 def import_model():
+
+    # Fall back to local directory import
+    realesrgan_path = os.path.join(os.path.dirname(__file__), 'Real-ESRGAN')
+    if realesrgan_path not in sys.path:
+        sys.path.insert(0, realesrgan_path)
     try:
-        # Try importing RealESRGAN as a pip-installed package
         import RealESRGAN
-        print("RealESRGAN imported from pip installation.")
+        print("RealESRGAN imported from local directory.")
     except ImportError:
-        # Fall back to local directory import
-        realesrgan_path = os.path.join(os.path.dirname(__file__), 'Real-ESRGAN')
-        if realesrgan_path not in sys.path:
-            sys.path.insert(0, realesrgan_path)
-        try:
-            import RealESRGAN
-            print("RealESRGAN imported from local directory.")
-        except ImportError:
-            raise ImportError("RealESRGAN not found. Please install it via pip or place it in the 'Real-ESRGAN' directory.")
+        raise ImportError("RealESRGAN not found. Please install it via pip or place it in the 'Real-ESRGAN' directory.")
 
 
 
