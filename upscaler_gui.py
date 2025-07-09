@@ -2,9 +2,9 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 
-from util_file import file_select_dialog, process_byte_input
+from util_file import process_byte_input
 from util_display import image_frame, load_texture
-from upscale import process_input, upscale, ModelManager
+from upscale import upscale, ModelManager
 
 #TODO: use await asyncio.sleep() instead of time.sleep() for stlite 
 
@@ -62,13 +62,17 @@ def get_model_manager():
     """Get a cached ModelManager instance"""
     return ModelManager()
 
+@st.cache_data
+def get_byte_input(uploaded_file):
+    """wrapper for process_byte_input to cache the result"""
+    return process_byte_input(uploaded_file)
 
 @st.cache_data
 def convert_for_download(img):
     from io import BytesIO
     from PIL import Image
     
-    extension = st.session_state['upscaled_result_filename'].split('.')[-1].lower()
+    extension = st.session_state['original_filename'].split('.')[-1].lower()
     format_map = {
         'jpg': 'JPEG',
         'jpeg': 'JPEG',
@@ -97,6 +101,29 @@ def convert_for_download(img):
         
     return data
 
+
+def build_filename():
+    """ caches mime type for download button
+        creates a new filename for the downloaded image that has the factors appended e.g image (x2 x4).png 
+        caches new filename
+        deletes the old filename from session state
+    """
+    # Cache mime type
+    extension = st.session_state['original_filename'].split('.')[-1]
+    st.session_state['cached_mime_type'] = f"image/{extension}"
+    
+    # Create new filename with factors appended
+    original_filename = st.session_state['original_filename']
+    name_without_ext = '.'.join(original_filename.split('.')[:-1])
+    
+    # Get selected scales and format them
+    selected_scales = st.session_state.get('selected_scales', [])
+    factors_str = ' '.join([f"x{scale}" for scale in selected_scales])
+    
+    # Create new filename
+    new_filename = f"{name_without_ext} ({factors_str}).{extension}"
+    st.session_state['output_upscaled_filename'] = new_filename
+    
 
 def upscale_callback(uploaded_img):
     if uploaded_img is not None:
@@ -166,14 +193,21 @@ if uploaded_file is not None:
     if 'current_file_id' not in st.session_state or st.session_state['current_file_id'] != uploaded_file.file_id:
         st.session_state['current_file_id'] = uploaded_file.file_id
         st.session_state['processing_complete'] = False
+        # Clear previous cached data
         if 'upscaled_result' in st.session_state:
             del st.session_state['upscaled_result']
+        if 'original_filename' in st.session_state:
+            del st.session_state['original_filename']
+        if 'output_upscaled_filename' in st.session_state:
+            del st.session_state['output_upscaled_filename']
     
     st.write("filename:", uploaded_file.name)
-    st.session_state['upscaled_result_filename'] = "new_" + uploaded_file.name
+    if 'original_filename' not in st.session_state:
+        st.session_state['original_filename'] = uploaded_file.name
+
     
     # Process the uploaded file
-    uploaded_img = process_byte_input(uploaded_file)
+    uploaded_img = get_byte_input(uploaded_file)
     
     # Display the original image
     src_img_display.image(uploaded_img, caption="Original Image", use_container_width=True,clamp=True)
@@ -186,11 +220,15 @@ if uploaded_file is not None:
     else:
          # Display the upscaled result
         res_img_display.image(st.session_state['upscaled_result'], caption="Upscaled Image", use_container_width=True, clamp=True)
+        
+        if 'output_upscaled_filename' not in st.session_state:
+            build_filename()
+        
         st.download_button(
             label="Download Upscaled Image",
             data= convert_for_download(st.session_state['upscaled_result']),
-            file_name=st.session_state['upscaled_result_filename'],
-            mime=f"image/{st.session_state['upscaled_result_filename'].split('.')[-1]}",
+            file_name=st.session_state['output_upscaled_filename'],
+            mime=st.session_state['cached_mime_type'],
             icon=":material/download:",
             key="download_upscaled_image"
         )

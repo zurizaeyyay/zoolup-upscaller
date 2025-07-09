@@ -6,3 +6,4 @@ RealESRGAN_weights-20250702T105314Z-1-001.zip
 Real-ESRGAN
 run_upscaller.bat
 index.html
+gui_test.py
