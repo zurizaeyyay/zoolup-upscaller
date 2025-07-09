@@ -1,3 +1,10 @@
+"""
+# upscale.py
+This module provides functionality to upscale images using the RealESRGAN model.
+Wrapper for the RealESRGAN model to handle image upscaling, including support for RGBA images.
+Includes methods for command line usage
+"""
+
 from PIL import Image
 import numpy as np
 import io
@@ -180,20 +187,24 @@ def upscale(img_input, model, output_path=None):
 #######################################################################
 ## Input Processing 
 
-def process_input(filename, model):
+def process_input(filename, model, output_path=None):
     
     # TODO: Allow user selection of output directory (default to image directory)
     output_folder = os.path.dirname(filename)
+    result_image_path = output_path
     
     # if multiple files are tared or multiple files selected in file input
     if tarfile.is_tarfile(filename):
-        result_image_path = os.path.join(output_folder, 'results', os.path.basename(filename))
-        os.makedirs(os.path.join(output_folder, 'results'), mode=0o777, exist_ok=True)
-        process_tar(filename, model, result_image_path, )
+        if output_path is None:
+            result_image_path = os.path.join(output_folder, 'results', os.path.basename(filename))
+            os.makedirs(os.path.join(output_folder, 'results'), mode=0o777, exist_ok=True)
+        process_tar(filename, model, result_image_path)
         
     else:
         os.makedirs(os.path.join(output_folder), mode=0o777, exist_ok=True)
-        result_image_path = os.path.join(output_folder, "new_" + os.path.basename(filename))
+        if output_path is None:
+            result_image_path = os.path.join(output_folder, "new_" + os.path.basename(filename))
+        
         upscale(filename, model, result_image_path)
 
 

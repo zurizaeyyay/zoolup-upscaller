@@ -28,6 +28,44 @@ def process_byte_input(uploaded_file):
         raise ValueError("No file uploaded or file is empty.")
 
 
+def build_filename(original_filename, selected_scales=["2"]):
+    """ 
+        creates a new filename for the downloaded image that has the factor appended e.g image (x2).png 
+        Used for CLI
+    """
+    # Create new filename with factors appended
+    
+    extension = original_filename.split('.')[-1]
+    name_without_ext = '.'.join(original_filename.split('.')[:-1])
+
+    # Format new factors
+    factors_str = ' '.join([f"x{scale}" for scale in selected_scales])
+    
+    # Check if filename ends with factors in parentheses like "(x2)" or "(x2 x4)"
+    if name_without_ext.endswith(')') and '(' in name_without_ext:
+        # Find the last opening parenthesis
+        last_open_paren = name_without_ext.rfind('(')
+        
+        # Extract what's inside the parentheses at the end
+        content_in_parens = name_without_ext[last_open_paren+1:-1]
+        
+        # Check if it contains factors (starts with 'x' and contains digits)
+        if content_in_parens and all(part.startswith('x') and part[1:].isdigit() for part in content_in_parens.split()):
+            # It's factors at the end, combine them
+            name_before_factors = name_without_ext[:last_open_paren]
+            combined_factors = f"{content_in_parens} {factors_str}"
+            new_filename = f"{name_before_factors}({combined_factors}).{extension}"
+        else:
+            # Not factors, treat as normal filename
+            new_filename = f"{name_without_ext} ({factors_str}).{extension}"
+    else:
+        # No parentheses at end, add factors normally
+        new_filename = f"{name_without_ext} ({factors_str}).{extension}"
+        
+
+    return new_filename
+
+
 # TODO: allow selection of multiple images
 def file_select_dialog():
     import tkinter as tk
