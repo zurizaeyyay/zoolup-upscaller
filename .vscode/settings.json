@@ -1,4 +1,3 @@
 {
-    "terminal.integrated.cwd": "${workspaceFolder}/gui-nextjs",
     "typescript.preferences.includePackageJsonAutoImports": "on"
 }

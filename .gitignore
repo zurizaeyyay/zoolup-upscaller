@@ -8,3 +8,4 @@ weights/
 run_upscaller.bat
 index.html
 gui_test.py
+build/
