@@ -50,7 +50,7 @@ class ModelManager:
         print('Device:', self.device)
         
         # Ensure weights directory exists
-        os.makedirs(WEIGHTS_DIR, mode=0o777, exist_ok=True)
+        os.makedirs(WEIGHTS_DIR, mode=0o755, exist_ok=True)
         
         weights_path = self._get_weights_path(scale)
         
@@ -217,11 +217,11 @@ def process_input(filename, model, output_path=None):
     if tarfile.is_tarfile(filename):
         if output_path is None:
             result_image_path = os.path.join(output_folder, 'results', os.path.basename(filename))
-            os.makedirs(os.path.join(output_folder, 'results'), mode=0o777, exist_ok=True)
+            os.makedirs(os.path.join(output_folder, 'results'), mode=0o755, exist_ok=True)
         process_tar(filename, model, result_image_path)
         
     else:
-        os.makedirs(os.path.join(output_folder), mode=0o777, exist_ok=True)
+        os.makedirs(os.path.join(output_folder), mode=0o755, exist_ok=True)
         if output_path is None:
             result_image_path = os.path.join(output_folder, "new_" + os.path.basename(filename))
         
