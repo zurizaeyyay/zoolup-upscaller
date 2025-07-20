@@ -13,6 +13,18 @@
                 "run",
                 "${file}"
             ],
+        },
+        {
+            "name": "Electron: Main",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/gui-nextjs",
+            "runtimeExecutable": "${workspaceFolder}/gui-nextjs/node_modules/.bin/electron",
+            "windows": {
+                "runtimeExecutable": "${workspaceFolder}/gui-nextjs/node_modules/.bin/electron.cmd"
+            },
+            "args": ["."],
+            "outputCapture": "std"
         }
     ]
 }

@@ -1,0 +1,56 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Next.js + Electron Dev",
+            "type": "shell",
+            "command": "pnpm",
+            "args": ["run", "electron-dev"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/gui-nextjs"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Next.js App",
+            "type": "shell",
+            "command": "pnpm",
+            "args": ["run", "build"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/gui-nextjs"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Streamlit GUI",
+            "type": "shell",
+            "command": "python",
+            "args": ["-m", "streamlit", "run", "upscaler_gui.py"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

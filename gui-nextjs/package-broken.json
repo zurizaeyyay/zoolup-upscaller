@@ -9,8 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "electron": "cross-env NODE_ENV=development electron .",
-    "electron-dev": "concurrently \"pnpm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"pnpm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron-pack": "pnpm run build && electron-builder",
     "preelectron-pack": "pnpm run build"
   },
