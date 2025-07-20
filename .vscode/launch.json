@@ -5,6 +5,41 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug FastAPI Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "api_server:app",
+                "--reload",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8000"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Debug Streamlit GUI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "upscaler_gui.py"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",

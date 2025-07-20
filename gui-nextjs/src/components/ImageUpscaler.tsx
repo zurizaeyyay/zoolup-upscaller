@@ -19,11 +19,9 @@ const IMAGE_FORMATS = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif'];
 
 const resampleModes = [
   { value: 'nearest', label: 'Nearest Neighbor - Fast' },
-  { value: 'linear', label: 'Linear - Basic interpolation' },
-  { value: 'bilinear', label: 'Bilinear - Smooth interpolation' },
-  { value: 'bicubic', label: 'Bicubic - High quality, smooth (recommended)' },
-  { value: 'trilinear', label: 'Trilinear - 3D interpolation' },
-  { value: 'nearest-exact', label: 'Nearest Neighbor Exact' }
+  { value: 'bilinear', label: 'Bilinear - Smooth interpolation (recommended)' },
+  { value: 'bicubic', label: 'Bicubic - High quality, smooth' },
+  { value: 'area', label: 'Area - Good for downsampling' }
 ];
 
 interface ProcessingState {
@@ -40,7 +38,7 @@ export default function ImageUpscaler() {
   const [fileName, setFileName] = useState<string>('');
   const [dimmingFactor, setDimmingFactor] = useState([2.0]);
   const [showProgress, setShowProgress] = useState(true);
-  const [resampleMode, setResampleMode] = useState<string>('');
+  const [resampleMode, setResampleMode] = useState<string>('nearest');
   const [iterationCount, setIterationCount] = useState([1]);
   const [selectedFactors, setSelectedFactors] = useState<(string | null)[]>([null]);
   const [processingState, setProcessingState] = useState<ProcessingState>({
@@ -125,11 +123,12 @@ export default function ImageUpscaler() {
            !processingState.isProcessing;
   };
 
-  const simulateUpscaling = async () => {
-    if (!originalImage) return;
+  const performUpscaling = async () => {
+    if (!originalImage || !fileInputRef.current?.files?.[0]) return;
 
     const count = iterationCount[0];
     const factors = selectedFactors.slice(0, count).filter(f => f !== null) as string[];
+    const file = fileInputRef.current.files[0];
     
     setProcessingState({
       isProcessing: true,
@@ -140,61 +139,94 @@ export default function ImageUpscaler() {
     });
 
     try {
-      for (let i = 0; i < factors.length; i++) {
-        const factor = factors[i];
-        
-        // Simulate model initialization
-        setProcessingState(prev => ({
-          ...prev,
-          currentStep: `Initializing model for ${factor} upscaling...`,
-          currentIteration: i + 1,
-          progress: (i / factors.length) * 100 * 0.1
-        }));
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('scales', JSON.stringify(factors.map(f => f.substring(1)))); // Remove 'x' prefix
+      formData.append('resample_mode', resampleMode || 'bicubic');
+      formData.append('show_progress', showProgress.toString());
 
-        // Simulate processing steps
-        const steps = ['Loading model weights', 'Processing image', 'Applying upscaling', 'Finalizing result'];
-        for (let step = 0; step < steps.length; step++) {
+      // Start WebSocket connection for progress updates
+      let ws: WebSocket | null = null;
+      const jobId = crypto.randomUUID();
+      
+      if (showProgress) {
+        ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
           setProcessingState(prev => ({
             ...prev,
-            currentStep: `${steps[step]} (${factor})...`,
-            progress: ((i + (step + 1) / steps.length) / factors.length) * 100
+            progress: data.progress * 100,
+            currentStep: data.message
           }));
-          await new Promise(resolve => setTimeout(resolve, 800));
-        }
-
-        setProcessingState(prev => ({
-          ...prev,
-          currentStep: `Finished upscale iteration ${i + 1}/${count} with scale ${factor}`,
-          progress: ((i + 1) / factors.length) * 100
-        }));
-        await new Promise(resolve => setTimeout(resolve, 500));
+        };
+        
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+        };
       }
 
-      // Set the result image (for demo, just use the original)
-      setResultImage(originalImage);
-      setProcessingComplete(true);
-      
-      setProcessingState(prev => ({
-        ...prev,
-        isProcessing: false,
-        currentStep: 'Image upscaled successfully!',
-        progress: 100
-      }));
-
-      toast({
-        title: "Success!",
-        description: "Image upscaled successfully",
+      // Send upscale request
+      const response = await fetch('http://localhost:8000/upscale', {
+        method: 'POST',
+        body: formData,
       });
 
-      // Clear progress after a delay
-      setTimeout(() => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'completed') {
+        // Download the result image
+        const imageResponse = await fetch(`http://localhost:8000${result.download_url}`);
+        if (!imageResponse.ok) {
+          throw new Error('Failed to download result image');
+        }
+        
+        const imageBlob = await imageResponse.blob();
+        const imageUrl = URL.createObjectURL(imageBlob);
+        
+        setResultImage(imageUrl);
+        setProcessingComplete(true);
+        
         setProcessingState(prev => ({
           ...prev,
-          currentStep: '',
-          progress: 0
+          isProcessing: false,
+          currentStep: 'Image upscaled successfully!',
+          progress: 100
         }));
-      }, 3000);
+
+        toast({
+          title: "Success!",
+          description: "Image upscaled successfully",
+        });
+
+        // Clean up job after success
+        setTimeout(async () => {
+          try {
+            await fetch(`http://localhost:8000/job/${result.job_id}`, {
+              method: 'DELETE'
+            });
+          } catch (e) {
+            console.error('Error cleaning up job:', e);
+          }
+          
+          setProcessingState(prev => ({
+            ...prev,
+            currentStep: '',
+            progress: 0
+          }));
+        }, 3000);
+      } else {
+        throw new Error(result.message || 'Upscaling failed');
+      }
+
+      // Close WebSocket connection
+      if (ws) {
+        ws.close();
+      }
 
     } catch (error) {
       setProcessingState(prev => ({
@@ -206,7 +238,7 @@ export default function ImageUpscaler() {
       
       toast({
         title: "Error",
-        description: "Failed to upscale image",
+        description: error instanceof Error ? error.message : "Failed to upscale image",
         variant: "destructive"
       });
     }
@@ -469,7 +501,7 @@ export default function ImageUpscaler() {
                   <Separator />
 
                   <Button 
-                    onClick={simulateUpscaling}
+                    onClick={performUpscaling}
                     disabled={!isUpscaleReady()}
                     className="w-full"
                     size="lg"

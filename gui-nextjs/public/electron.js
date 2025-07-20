@@ -20,8 +20,10 @@ function createWindow() {
     title: 'Image Upscaler'
   });
 
+  // Try to detect the Next.js dev server port, default to 3000
+  const devPort = process.env.NEXT_DEV_PORT || '3000';
   const startUrl = isDev 
-    ? 'http://localhost:3000' 
+    ? `http://localhost:3000` 
     : `file://${path.join(__dirname, '../out/index.html')}`;
 
   console.log('Loading URL:', startUrl);
