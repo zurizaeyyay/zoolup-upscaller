@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, Form
+from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 from PIL import Image
 import numpy as np
 
@@ -141,145 +142,162 @@ async def get_available_models():
         }
     }
 
-@app.post("/upscale")
+@app.post("/upscale", status_code=202)
 async def upscale_image(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     scales: str = Form(default="2"),  # JSON string like "[\"2\", \"4\"]"
     resample_mode: str = Form(default="bicubic"),
     show_progress: bool = Form(default=True),
-    job_id: str = Form(default=None)
+    job_id: str = Form(None),
+    
 ):
     """
     Upscale an image with the specified parameters
     """
     
+    try:
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        # Read the uploaded file
+        raw_bytes = await file.read()
+    except Exception as e:
+        logger.error(f"Error reading uploaded file: {e}")
+        raise HTTPException(status_code=400, detail="Invalid file upload")
+    
     if job_id == None:
         job_id = str(uuid.uuid4())
     
+    # send initial “accepted” response
+    background_tasks.add_task(
+        run_in_threadpool,
+        upscale_job,  # a sync function that wraps your loop & ModelManager calls
+        job_id, 
+        raw_bytes,
+        file.filename,
+        scales, 
+        resample_mode, 
+        show_progress
+    )
+    
+    return {"job_id": job_id, "status": "accepted"}
+
+def upscale_job(
+    job_id: str,
+    raw_file_bytes: bytes,
+    original_filename: str,
+    scales: str | list[str],
+    resample_mode: str,
+    show_progress: bool
+):
+    """
+    Synchronous helper to run in a thread pool.
+    - raw_file_bytes: the body of the uploaded file
+    - original_filename: e.g. "photo.jpg"
+    - scales: JSON string or list of scale factors
+    - resample_mode: interpolation mode
+    - show_progress: whether to push updates
+    """
     try:
-        # Parse scales parameter - handle different input types
+        # 1) Parse + validate scales
         if isinstance(scales, str):
             try:
-                # Try to parse the scale list as JSON
                 scale_list = json.loads(scales)
                 if not isinstance(scale_list, list):
                     scale_list = [str(scale_list)]
             except json.JSONDecodeError:
-                # If JSON parsing fails, treat as single scale
                 scale_list = [scales]
-        elif isinstance(scales, (list, tuple)):
-            scale_list = [str(s) for s in scales]
         else:
-            # If it's a number or other type, convert to string and put in list
-            scale_list = [str(scales)]
-        
-        valid_factors = (await get_available_models())["factors"]
-        # Ensure all scales are strings and valid
-        scale_list = [str(s) for s in scale_list if str(s) in valid_factors]
+            scale_list = [str(s) for s in scales]
+
+        retrieved_model_info = asyncio.run(get_available_models())
+
+        valid_factors = retrieved_model_info["factors"]
+        scale_list = [s for s in scale_list if str(s) in valid_factors]
         if not scale_list:
-            raise HTTPException(status_code=400, detail=f'No valid scales provided. Must be {valid_factors}')
-        
-        # Validate resample mode
-        valid_resample_modes = (await get_available_models())["resample_modes"]
-        if resample_mode not in valid_resample_modes:
-            resample_mode = "bicubic"  # Default fallback
-            logging.warning(f"Invalid resample mode '{resample_mode}', using default 'bicubic'")
-        
-        # Validate file type
-        if not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail="File must be an image")
-        
-        # Read and process the uploaded image
-        uploaded_img = await process_byte_input(file)
-        
-        # Initialize job tracking
+            raise ValueError(f"No valid scales provided. Must be {valid_factors}")
+
+        # 2) Validate resample mode
+        valid_modes = retrieved_model_info["resample_modes"]
+        if resample_mode not in valid_modes:
+            logging.warning(f"Invalid resample_mode '{resample_mode}', falling back to 'bicubic'")
+            resample_mode = "bicubic"
+
+        # 3) Read image from bytes
+        uploaded_img = asyncio.run(process_byte_input(raw_file_bytes))
+
+        # 4) Initialize job state
         state.active_jobs[job_id] = {
             "status": "processing",
             "progress": 0.0,
-            "message": "Starting upscale...",
+            "message": "Starting upscale…",
             "scales": scale_list,
             "resample_mode": resample_mode
         }
-        
+
         # Send initial progress
         if show_progress:
-            await send_progress_update(job_id, 0.0, "Starting upscale...")
-        
-        # Process each scale sequentially
+            asyncio.run(send_progress_update(job_id, 0.0, "Starting upscale…"))
+
+        # 5) Loop over scales
         current_img = uploaded_img
-        total_scales = len(scale_list)
-        
-        # Convert to numpy array if it's a PIL Image
-        current_img = np.array(current_img) if isinstance(current_img, Image.Image) else current_img
-        
+        if isinstance(current_img, Image.Image):
+            current_img = np.array(current_img)
+        total = len(scale_list)
+
         async def progress_callback(progress: float, message: str):
+            # update state and push via WebSocket
             state.active_jobs[job_id]["progress"] = progress
             state.active_jobs[job_id]["message"] = message
             await send_progress_update(job_id, progress, message)
-            
-        
-        for i, scale in enumerate(scale_list):
-            # Get model for this scale
+
+        for idx, scale in enumerate(scale_list):
             model = state.get_model(scale, resample_mode)
-            
-            # Upscale with progress tracking
             if show_progress:
-                result = await model.predict_with_progress(
-                    current_img,
-                    progress_callback=progress_callback
-                )
+                result = asyncio.run(model.predict_with_progress(current_img, progress_callback=progress_callback))
             else:
                 result = model.predict(current_img)
-            
+
             # Predict functions return PIL images
-            # Ensure result is a numpy array for the next iteration
-            # Does not convert for the last iteration which preserves RGBA return format
-            if isinstance(result, Image.Image) and i != total_scales - 1:
+            # prepare for next iteration and preserves RGBA return format if final iteration
+            if isinstance(result, Image.Image) and idx < total - 1:
                 current_img = np.array(result)
             else:
                 current_img = result
-            
-            # Send completion message for this iteration
-            if show_progress:
-                await send_progress_update(job_id, 1.0, f"Completed scale x{scale}")
-        
-        
-        result_img = current_img
-        output_filename = generate_filename(file.filename, scale_list, resample_mode)
-        
-        # Save image locally
-        output_folder = os.path.join('results', 'images')
-        os.makedirs(output_folder, mode=0o755, exist_ok=True)
-        output_path = os.path.join(output_folder, output_filename)
-        result_img.save(output_path)
-        
-         # Update job status
-        state.active_jobs[job_id]["status"] = "completed"
-        state.active_jobs[job_id]["progress"] = 1.0
-        state.active_jobs[job_id]["message"] = "Image upscaled successfully!"
-        state.active_jobs[job_id]["output_file"] = output_path # path on server to result image
-        state.active_jobs[job_id]["filename"] = output_filename
-        
-        # Send final progress update
-        if show_progress:
-            await send_progress_update(job_id, 1.0, "Image upscaled successfully!")
-        
-        return {
-            "job_id": job_id,
-            "status": "completed",
-            "message": "Image upscaled successfully!",
-            "download_url": f"/download/{job_id}",
-            "filename": output_filename
-        }
-        
-    except Exception as e:
-        logger.error(f"Error processing upscale request: {e}")
-        state.active_jobs[job_id] = {
-            "status": "error",
-            "message": str(e)
-        }
-        raise HTTPException(status_code=500, detail=str(e))
 
+            # send “this scale done” update
+            if show_progress:
+                asyncio.run(send_progress_update(job_id, 1.0, f"Completed scale x{scale}"))
+
+        # 6) Save final result
+        output_filename = generate_filename(original_filename, scale_list, resample_mode)
+        out_dir = os.path.join("results", "images")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, output_filename)
+
+        # If PIL.Image:
+        if isinstance(current_img, Image.Image):
+            current_img.save(out_path)
+        else:
+            # assume numpy array
+            Image.fromarray(current_img).save(out_path)
+
+        # 7) Mark job complete
+        state.active_jobs[job_id].update({
+            "status": "completed",
+            "progress": 1.0,
+            "message": "Image upscaled successfully!",
+            "output_file": out_path,
+            "filename": output_filename
+        })
+        if show_progress:
+            asyncio.run(send_progress_update(job_id, 1.0, "Image upscaled successfully!"))
+
+    except Exception as e:
+        logger.error(f"[upscale_job:{job_id}] error: {e}")
+        state.active_jobs[job_id] = {"status": "error", "message": str(e)}
+        
 @app.get("/job/{job_id}")
 async def get_job_status(job_id: str):
     """Get the status of an upscaling job"""
