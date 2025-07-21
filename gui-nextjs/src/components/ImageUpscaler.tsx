@@ -151,77 +151,117 @@ export default function ImageUpscaler() {
       });
     });
 
-    try {
-      // Prepare form data
-      const jobId = crypto.randomUUID()
-      const scalesArray = factors.map(f => f.substring(1));;
+    const jobId = crypto.randomUUID()
 
+    // Start WebSocket connection for progress updates
+    let ws: WebSocket | null = null;
+    let wsReady = false;
+
+    if (showProgress) {
+      console.log(`🔌 Connecting WebSocket to: ws://localhost:8000/ws/${jobId}`);
+      ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
+
+      // Set up all handlers before waiting for connection
+      ws.onmessage = async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          flushSync(() => {
+            console.log('📨 Progress update received:', data);
+
+            startTransition(() => {
+              setProcessingState(prev => ({
+                ...prev,
+                progress: Math.round(data.progress * 100),
+                currentStep: data.message || 'Processing...',
+                currentIteration: Math.ceil(data.progress * count)
+              }));
+            });
+          });
+
+          // whenever server says 1.0 progress (100%), check if final stage
+          if (data.progress === 1) {
+            const statusRes = await fetch(`http://localhost:8000/job/${jobId}`);
+            if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
+            const statusData = await statusRes.json() as {
+              jobId: string;
+              status: string;
+              progress: number;
+              message: string;
+            };
+            
+            if (statusData.status === 'completed') {
+              // fetch the upscaled image
+              const imgResp = await fetch(`http://localhost:8000/download/${jobId}`);
+              if (!imgResp.ok) {
+                throw new Error(`Download failed: ${imgResp.status}`);
+              }
+              const blob = await imgResp.blob();
+              const url = URL.createObjectURL(blob);
+
+              // update UI
+              setResultImage(url);
+              setResultName(`${jobId}.png`); // or parse from data if you send filename over WS
+              setProcessingComplete(true);
+
+              startTransition(() => {
+                setProcessingState(prev => ({
+                  ...prev,
+                  isProcessing: false,
+                  progress: 100,
+                  currentStep: 'Image upscaled successfully!'
+                }));
+              });
+
+              toast({ title: 'Success!', description: 'Image upscaled successfully.' });
+
+              // cleanup server‐side job
+              setTimeout(async () => {
+                try {
+                  await fetch(`http://localhost:8000/job/${jobId}`, { method: 'DELETE' });
+                } catch (e) {
+                  console.error('Cleanup error:', e);
+                }
+                startTransition(() => {
+                  setProcessingState(prev => ({
+                    ...prev,
+                    currentStep: '',
+                    progress: 0
+                  }));
+                });
+              }, 3000);
+
+              // close socket
+              ws?.close();
+            }
+          }
+        } catch (err) {
+          console.error('❌ WS handler error:', err);
+        }
+      };
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket connected');
+        wsReady = true;
+      };
+      ws.onerror = (e) => console.error('❌ WebSocket error:', e);
+      ws.onclose = (e) => console.log('🔌 WS closed', e.code, e.reason);
+      
+      // wait up to 5s for WS, but don’t block UI
+      await new Promise<void>(res => {
+        setTimeout(() => res(), 5000);
+        if (wsReady) res();
+      });
+    }
+
+    try {
+      // Prepare form data and send job request
+      const scalesArray = factors.map(f => f.substring(1));
       const formData = new FormData();
       formData.append('file', file);
       formData.append('scales', JSON.stringify(scalesArray)); // Remove 'x' prefix
       formData.append('resample_mode', resampleMode);
       formData.append('show_progress', showProgress.toString());
       formData.append('job_id', jobId);
-
-      // Start WebSocket connection for progress updates
-      let ws: WebSocket | null = null;
-      let wsReady = false;
-
-      if (showProgress) {
-        console.log(`🔌 Connecting WebSocket to: ws://localhost:8000/ws/${jobId}`);
-        ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
-
-        // Set up all handlers before waiting for connection
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            flushSync(() => {
-              console.log('📨 Progress update received:', data);
-
-              startTransition(() => {
-                setProcessingState(prev => ({
-                  ...prev,
-                  progress: Math.round(data.progress * 100),
-                  currentStep: data.message || 'Processing...',
-                  currentIteration: Math.ceil(data.progress * count)
-                }));
-              });
-            });
-          } catch (error) {
-            console.error('❌ Error parsing WebSocket message:', error);
-          }
-        };
-
-        ws.onclose = (event) => {
-          console.log('🔌 WebSocket closed:', event.code, event.reason);
-        };
-
-        ws.onerror = (error) => {
-          console.error('❌ WebSocket error:', error);
-        };
-
-        // Wait for WebSocket to open before sending the request
-        await new Promise<void>((resolve, reject) => {
-          if (!ws) {
-            resolve();
-            return;
-          }
-
-          ws.onopen = () => {
-            console.log('✅ WebSocket connected and ready');
-            wsReady = true;
-            resolve();
-          };
-
-          // Timeout after 5 seconds
-          setTimeout(() => {
-            if (!wsReady) {
-              console.warn('⚠️ WebSocket connection timeout, proceeding anyway');
-              resolve();
-            }
-          }, 5000);
-        });
-      }
 
       // Send upscale request
       const response = await fetch('http://localhost:8000/upscale', {
@@ -231,69 +271,12 @@ export default function ImageUpscaler() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ API Error:', errorText);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      const result = await response.json();
-
-      if (result.status === 'completed') {
-        // Download the result image
-        const imageResponse = await fetch(`http://localhost:8000${result.download_url}`);
-        if (!imageResponse.ok) {
-          throw new Error('Failed to download result image');
-        }
-
-        const imageBlob = await imageResponse.blob();
-        const imageUrl = URL.createObjectURL(imageBlob);
-
-        setResultImage(imageUrl);
-        setResultName(result.filename);
-        setProcessingComplete(true);
-
-        startTransition(() => {
-          setProcessingState(prev => ({
-            ...prev,
-            isProcessing: false,
-            currentStep: 'Image upscaled successfully!',
-            progress: 100
-          }));
-        });
-
-        toast({
-          title: "Success!",
-          description: "Image upscaled successfully",
-        });
-
-        // Clean up job after success
-        setTimeout(async () => {
-          try {
-            await fetch(`http://localhost:8000/job/${result.job_id}`, {
-              method: 'DELETE'
-            });
-          } catch (e) {
-            console.error('Error cleaning up job:', e);
-          }
-
-          startTransition(() => {
-            setProcessingState(prev => ({
-              ...prev,
-              currentStep: '',
-              progress: 0
-            }));
-          });
-        }, 3000);
-
-      } else {
-        throw new Error(result.message || 'Upscaling failed');
-      }
-
-      // Close WebSocket connection
-      if (ws) {
-        ws.close();
-      }
-
+      await response.json();
     } catch (error) {
+      console.error('❌ Upscale API error:', error);
       startTransition(() => {
         setProcessingState(prev => ({
           ...prev,
@@ -308,6 +291,7 @@ export default function ImageUpscaler() {
         description: error instanceof Error ? error.message : "Failed to upscale image",
         variant: "destructive"
       });
+      ws?.close();
     }
   };
 
