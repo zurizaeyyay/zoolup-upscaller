@@ -80,10 +80,12 @@ async def send_progress_update(job_id: str, progress: float, message: str):
     """Send progress update via WebSocket"""
     if job_id in state.websocket_connections:
         try:
-            await state.websocket_connections[job_id].send_json({
+            progress_data = {
                 "progress": progress,
                 "message": message
-            })
+            }
+            logger.info(f"📤 Sending progress update for job {job_id}: {progress_data}")
+            await state.websocket_connections[job_id].send_json(progress_data)
         except Exception as e:
             logger.error(f"Error sending WebSocket message: {e}")
 
@@ -93,7 +95,6 @@ def generate_filename(filename, scale_list, resample_mode):
     extension = filename.split('.')[-1]
     name_without_ext = '.'.join(filename.split('.')[:-1])
     
-    original_name = filename.split('.')[0]
     factors_str = ' '.join([f"x{scale}" for scale in scale_list])
     
     # Check if filename ends with factors in parentheses like "(x2)" or "(x2 x4)"
@@ -211,32 +212,21 @@ async def upscale_image(
         # Convert to numpy array if it's a PIL Image
         current_img = np.array(current_img) if isinstance(current_img, Image.Image) else current_img
         
+        async def progress_callback(progress: float, message: str):
+            state.active_jobs[job_id]["progress"] = progress
+            state.active_jobs[job_id]["message"] = message
+            await send_progress_update(job_id, progress, message)
+            
+        
         for i, scale in enumerate(scale_list):
             # Get model for this scale
             model = state.get_model(scale, resample_mode)
             
-            # Define progress callback
-            async def progress_callback(progress: float, message: str):
-                # Calculate overall progress
-                overall_progress = (i + progress) / total_scales
-                state.active_jobs[job_id]["progress"] = overall_progress
-                state.active_jobs[job_id]["message"] = f"Iteration {i+1}/{total_scales}: {message}"
-                
-                if show_progress:
-                    await send_progress_update(job_id, overall_progress, state.active_jobs[job_id]["message"])
-            
             # Upscale with progress tracking
             if show_progress:
-                # Create a synchronous wrapper for the async callback
-                def sync_progress_callback(progress: float, message: str):
-                    # This will be called from the model's synchronous code
-                    # We'll handle this by storing progress in the job state
-                    state.active_jobs[job_id]["progress"] = (i + progress) / total_scales
-                    state.active_jobs[job_id]["message"] = f"Iteration {i+1}/{total_scales}: {message}"
-                    
-                result = model.predict_with_progress(
+                result = await model.predict_with_progress(
                     current_img,
-                    progress_callback=sync_progress_callback
+                    progress_callback=progress_callback
                 )
             else:
                 result = model.predict(current_img)
@@ -250,7 +240,8 @@ async def upscale_image(
                 current_img = result
             
             # Send completion message for this iteration
-            await progress_callback(1.0, f"Completed scale x{scale}")
+            if show_progress:
+                await send_progress_update(job_id, 1.0, f"Completed scale x{scale}")
         
         
         result_img = current_img
