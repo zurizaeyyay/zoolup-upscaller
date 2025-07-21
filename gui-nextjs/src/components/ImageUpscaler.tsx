@@ -187,6 +187,7 @@ export default function ImageUpscaler() {
               status: string;
               progress: number;
               message: string;
+              filename: string;
             };
             
             if (statusData.status === 'completed') {
@@ -200,7 +201,8 @@ export default function ImageUpscaler() {
 
               // update UI
               setResultImage(url);
-              setResultName(`${jobId}.png`); // or parse from data if you send filename over WS
+              setResultName(statusData.filename); 
+
               setProcessingComplete(true);
 
               startTransition(() => {
@@ -228,7 +230,7 @@ export default function ImageUpscaler() {
                     progress: 0
                   }));
                 });
-              }, 3000);
+              }, 5000);
 
               // close socket
               ws?.close();
@@ -273,8 +275,8 @@ export default function ImageUpscaler() {
         const errorText = await response.text();
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
-
       await response.json();
+      
     } catch (error) {
       console.error('❌ Upscale API error:', error);
       startTransition(() => {

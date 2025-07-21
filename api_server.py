@@ -161,7 +161,7 @@ async def upscale_image(
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         # Read the uploaded file
-        raw_bytes = await file.read()
+        img_file = await process_byte_input(file)
     except Exception as e:
         logger.error(f"Error reading uploaded file: {e}")
         raise HTTPException(status_code=400, detail="Invalid file upload")
@@ -174,7 +174,7 @@ async def upscale_image(
         run_in_threadpool,
         upscale_job,  # a sync function that wraps your loop & ModelManager calls
         job_id, 
-        raw_bytes,
+        img_file,
         file.filename,
         scales, 
         resample_mode, 
@@ -185,7 +185,7 @@ async def upscale_image(
 
 def upscale_job(
     job_id: str,
-    raw_file_bytes: bytes,
+    img_file: Image,
     original_filename: str,
     scales: str | list[str],
     resample_mode: str,
@@ -225,7 +225,7 @@ def upscale_job(
             resample_mode = "bicubic"
 
         # 3) Read image from bytes
-        uploaded_img = asyncio.run(process_byte_input(raw_file_bytes))
+        uploaded_img = img_file
 
         # 4) Initialize job state
         state.active_jobs[job_id] = {
@@ -310,6 +310,7 @@ async def get_job_status(job_id: str):
         "status": job["status"],
         "progress": job.get("progress", 0.0),
         "message": job.get("message", ""),
+        "filename": job.get("filename", ""),
     }
 
 @app.get("/download/{job_id}")
