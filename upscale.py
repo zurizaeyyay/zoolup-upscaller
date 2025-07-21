@@ -5,6 +5,8 @@ Wrapper for the RealESRGAN model to handle image upscaling, including support fo
 Includes methods for command line usage
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 import numpy as np
 import io
@@ -27,6 +29,7 @@ class ModelManager:
         self.current_scale = None
         self.current_resample_mode = None
         self.device = None
+        #self._executor = ThreadPoolExecutor(max_workers=2)  # Limit concurrent predictions
         
     
     def initialize_model(self, scale="2", use_attention=False, resample_mode='bicubic'):
@@ -122,7 +125,7 @@ class ModelManager:
         
         return Image.fromarray(upscaled_rgba.astype(np.uint8), 'RGBA')
     
-    def predict_with_progress(self, image_input, progress_callback=None):
+    async def predict_with_progress(self, image_input, progress_callback=None):
         """Predict with progress tracking"""
         if self.model is None:
             raise RuntimeError("Model not initialized. Call initialize_model() first.")
@@ -133,13 +136,23 @@ class ModelManager:
         else:
             image_array = image_input
         
+        if progress_callback:
+            await progress_callback(0.1, "Starting prediction...")
+        
         # Check if RGBA
         if len(image_array.shape) == 3 and image_array.shape[2] == 4:
-            return self._predict_rgba_with_progress(image_array, progress_callback)
+            return await self._predict_rgba_with_progress(image_array, progress_callback)
         else:
-            return self.model.predict_with_progress(lr_image=image_array, progress_callback=progress_callback)
+            # Run heavy computation in thread pool
+            """ loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                self._executor,
+                self.model.predict_with_progress(lr_image=image_array, progress_callback=progress_callback)
+            ) """
+            result = await self.model.predict_with_progress(lr_image=image_array, progress_callback=progress_callback)
+            return result
         
-    def _predict_rgba_with_progress(self, rgba_array, progress_callback):
+    async def _predict_rgba_with_progress(self, rgba_array, progress_callback):
         """Handle RGBA with progress tracking"""
         # Separate channels
         rgb_array = rgba_array[:, :, :3]
@@ -147,22 +160,31 @@ class ModelManager:
         
         # Update progress
         if progress_callback:
-            progress_callback(0.1, "Processing RGB channels...")
+            await progress_callback(0.2, "Processing RGB channels...")
         
-        # Upscale RGB
-        upscaled_rgb = self.model.predict_with_progress(lr_image=rgb_array, progress_callback=progress_callback)
+        # Upscale RGB inside of thread pool
+        """ loop = asyncio.get_event_loop()
+        upscaled_rgb = await loop.run_in_executor(
+            self._executor,
+            self.model.predict_with_progress(lr_image=rgb_array, progress_callback=progress_callback)
+        ) """
+        upscaled_rgb = await self.model.predict_with_progress(lr_image=rgb_array, progress_callback=progress_callback)
         upscaled_rgb = np.array(upscaled_rgb)
         
         if progress_callback:
-            progress_callback(0.8, "Processing alpha channel...")
+            await progress_callback(0.8, "Processing alpha channel...")
         
         # Upscale Alpha
         alpha_3ch = np.stack([alpha_array, alpha_array, alpha_array], axis=-1)
+        """ upscaled_alpha_3ch = await loop.run_in_executor(
+            self._executor,
+            self.model.predict(lr_image=alpha_3ch)
+        ) """
         upscaled_alpha_3ch = self.model.predict(lr_image=alpha_3ch)
         upscaled_alpha = np.array(upscaled_alpha_3ch)[:, :, 0]
         
         if progress_callback:
-            progress_callback(0.95, "Combining channels...")
+            await progress_callback(0.9, "Combining channels...")
         
         # Combine results
         upscaled_rgba = np.dstack([
@@ -173,7 +195,7 @@ class ModelManager:
         ])
         
         if progress_callback:
-            progress_callback(1.0, "Complete!")
+            await progress_callback(1.0, "RGBA Processing Complete!")
         
         return Image.fromarray(upscaled_rgba.astype(np.uint8), 'RGBA')
     

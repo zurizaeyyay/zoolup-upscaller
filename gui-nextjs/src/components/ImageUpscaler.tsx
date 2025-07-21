@@ -127,6 +127,8 @@ export default function ImageUpscaler() {
       !processingState.isProcessing;
   };
 
+  /*//////////////////////////////////////////////////
+  ////////////////////////////////////////////////////*/
   const performUpscaling = async () => {
     if (!originalImage || !fileInputRef.current?.files?.[0]) return;
 
@@ -160,22 +162,61 @@ export default function ImageUpscaler() {
 
       // Start WebSocket connection for progress updates
       let ws: WebSocket | null = null;
-
+      let wsReady = false;
 
       if (showProgress) {
+        console.log('🔌 Connecting WebSocket...');
         ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
-        ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          setProcessingState(prev => ({
-            ...prev,
-            progress: data.progress * 100,
-            currentStep: data.message
-          }));
-        };
 
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-        };
+        // Wait for WebSocket to open before sending the request
+        await new Promise<void>((resolve, reject) => {
+          if (!ws) {
+            resolve();
+            return;
+          }
+
+          ws.onopen = () => {
+            console.log('✅ WebSocket connected');
+            wsReady = true;
+            resolve();
+          };
+
+          ws.onerror = (error) => {
+            console.error('❌ WebSocket connection failed:', error);
+            resolve(); // Continue even if WebSocket fails
+          };
+
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            if (!wsReady) {
+              console.warn('⚠️ WebSocket connection timeout');
+              resolve();
+            }
+          }, 5000);
+        });
+
+        // Set up message handler
+        if (ws && wsReady) {
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              console.log('📨 Progress update:', data);
+
+              setProcessingState(prev => ({
+                ...prev,
+                progress: Math.round(data.progress * 100),
+                currentStep: data.message || 'Processing...',
+                currentIteration: Math.ceil(data.progress * count)
+              }));
+            } catch (error) {
+              console.error('❌ Error parsing WebSocket message:', error);
+            }
+          };
+
+          ws.onclose = (event) => {
+            console.log('🔌 WebSocket closed:', event.code, event.reason);
+          };
+        }
       }
 
       // Send upscale request
@@ -185,7 +226,9 @@ export default function ImageUpscaler() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const result = await response.json();
