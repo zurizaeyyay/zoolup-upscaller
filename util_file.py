@@ -8,14 +8,15 @@ from io import BytesIO
 IMAGE_FORMATS = ('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')
 
 
-def process_byte_input(uploaded_file):
+async def process_byte_input(uploaded_file):
     """
     Process an uploaded file (in bytes) and return a PIL Image.
     Preserves transparency
     """
     if uploaded_file is not None:
         # Convert UploadedFile to PIL Image
-        image = Image.open(BytesIO(uploaded_file.read()))
+        file_content = await uploaded_file.read()
+        image = Image.open(BytesIO(file_content))
         
         # Check transparency and convert if necessary
         if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):

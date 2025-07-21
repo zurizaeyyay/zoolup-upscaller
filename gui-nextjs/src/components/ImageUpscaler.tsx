@@ -17,11 +17,14 @@ const MAX_NODES = 5;
 const FACTORS = ['x2', 'x4', 'x8'];
 const IMAGE_FORMATS = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif'];
 
+
+
 const resampleModes = [
-  { value: 'nearest', label: 'Nearest Neighbor - Fast' },
-  { value: 'bilinear', label: 'Bilinear - Smooth interpolation (recommended)' },
-  { value: 'bicubic', label: 'Bicubic - High quality, smooth' },
-  { value: 'area', label: 'Area - Good for downsampling' }
+  { value: 'nearest', label: 'Nearest Neighbor - Fast and sharp lines' },
+  { value: 'bilinear', label: 'Bilinear - Smooth interpolation' },
+  { value: 'bicubic', label: 'Bicubic - High quality, smooth (recommended)' },
+  { value: 'area', label: 'Area - Good for downsampling' },
+  { value: 'nearest-exact', label: 'Nearest Neighbor Exact - Newer nearest neighbor algorithm' },
 ];
 
 interface ProcessingState {
@@ -35,10 +38,11 @@ interface ProcessingState {
 export default function ImageUpscaler() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultName, setResultName] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [dimmingFactor, setDimmingFactor] = useState([2.0]);
   const [showProgress, setShowProgress] = useState(true);
-  const [resampleMode, setResampleMode] = useState<string>('nearest');
+  const [resampleMode, setResampleMode] = useState<string>('nearest-exact');
   const [iterationCount, setIterationCount] = useState([1]);
   const [selectedFactors, setSelectedFactors] = useState<(string | null)[]>([null]);
   const [processingState, setProcessingState] = useState<ProcessingState>({
@@ -49,13 +53,13 @@ export default function ImageUpscaler() {
     totalIterations: 0
   });
   const [processingComplete, setProcessingComplete] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileUpload = useCallback((file: File) => {
     if (!file) return;
-    
+
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!IMAGE_FORMATS.includes(fileExtension)) {
       toast({
@@ -69,7 +73,7 @@ export default function ImageUpscaler() {
     setFileName(file.name);
     setProcessingComplete(false);
     setResultImage(null);
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
@@ -118,18 +122,22 @@ export default function ImageUpscaler() {
 
   const isUpscaleReady = () => {
     const count = iterationCount[0];
-    return originalImage && 
-           selectedFactors.slice(0, count).every(factor => factor !== null) &&
-           !processingState.isProcessing;
+    return originalImage &&
+      selectedFactors.slice(0, count).every(factor => factor !== null) &&
+      !processingState.isProcessing;
   };
 
   const performUpscaling = async () => {
     if (!originalImage || !fileInputRef.current?.files?.[0]) return;
 
+    //Clear previous results immediately when starting new upscale
+    setResultImage(null);
+    setProcessingComplete(false);
+
     const count = iterationCount[0];
     const factors = selectedFactors.slice(0, count).filter(f => f !== null) as string[];
     const file = fileInputRef.current.files[0];
-    
+
     setProcessingState({
       isProcessing: true,
       progress: 0,
@@ -140,16 +148,20 @@ export default function ImageUpscaler() {
 
     try {
       // Prepare form data
+      const jobId = crypto.randomUUID()
+      const scalesArray = factors.map(f => f.substring(1));;
+
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('scales', JSON.stringify(factors.map(f => f.substring(1)))); // Remove 'x' prefix
-      formData.append('resample_mode', resampleMode || 'bicubic');
+      formData.append('scales', JSON.stringify(scalesArray)); // Remove 'x' prefix
+      formData.append('resample_mode', resampleMode);
       formData.append('show_progress', showProgress.toString());
+      formData.append('job_id', jobId);
 
       // Start WebSocket connection for progress updates
       let ws: WebSocket | null = null;
-      const jobId = crypto.randomUUID();
-      
+
+
       if (showProgress) {
         ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
         ws.onmessage = (event) => {
@@ -160,7 +172,7 @@ export default function ImageUpscaler() {
             currentStep: data.message
           }));
         };
-        
+
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
         };
@@ -177,20 +189,21 @@ export default function ImageUpscaler() {
       }
 
       const result = await response.json();
-      
+
       if (result.status === 'completed') {
         // Download the result image
         const imageResponse = await fetch(`http://localhost:8000${result.download_url}`);
         if (!imageResponse.ok) {
           throw new Error('Failed to download result image');
         }
-        
+
         const imageBlob = await imageResponse.blob();
         const imageUrl = URL.createObjectURL(imageBlob);
-        
+
         setResultImage(imageUrl);
+        setResultName(result.filename);
         setProcessingComplete(true);
-        
+
         setProcessingState(prev => ({
           ...prev,
           isProcessing: false,
@@ -212,7 +225,7 @@ export default function ImageUpscaler() {
           } catch (e) {
             console.error('Error cleaning up job:', e);
           }
-          
+
           setProcessingState(prev => ({
             ...prev,
             currentStep: '',
@@ -235,7 +248,7 @@ export default function ImageUpscaler() {
         currentStep: '',
         progress: 0
       }));
-      
+
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to upscale image",
@@ -244,24 +257,12 @@ export default function ImageUpscaler() {
     }
   };
 
-  const generateFilename = () => {
-    if (!fileName) return 'upscaled_image.png';
-    
-    const count = iterationCount[0];
-    const factors = selectedFactors.slice(0, count).filter(f => f !== null) as string[];
-    const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
-    const extension = fileName.substring(fileName.lastIndexOf('.'));
-    const factorsStr = factors.join(' ');
-    
-    return `${nameWithoutExt} (${factorsStr})${extension}`;
-  };
-
   const handleDownload = () => {
     if (!resultImage) return;
-    
+
     const link = document.createElement('a');
     link.href = resultImage;
-    link.download = generateFilename();
+    link.download = resultName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -301,8 +302,8 @@ export default function ImageUpscaler() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="show-progress" 
+                  <Checkbox
+                    id="show-progress"
                     checked={showProgress}
                     onCheckedChange={(checked) => setShowProgress(checked === true)}
                   />
@@ -363,10 +364,10 @@ export default function ImageUpscaler() {
                     {processingComplete && resultImage ? (
                       <img src={resultImage} alt="Result" className="max-w-full max-h-full object-contain" />
                     ) : originalImage ? (
-                      <img 
-                        src={originalImage} 
-                        alt="Placeholder" 
-                        className="max-w-full max-h-full object-contain opacity-50" 
+                      <img
+                        src={originalImage}
+                        alt="Placeholder"
+                        className="max-w-full max-h-full object-contain opacity-50"
                         style={{ filter: `brightness(${1 / dimmingFactor[0]})` }}
                       />
                     ) : (
@@ -425,7 +426,7 @@ export default function ImageUpscaler() {
                     className="hidden"
                   />
                 </div>
-                
+
                 {fileName && (
                   <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
                     <p className="text-sm">filename: {fileName}</p>
@@ -500,7 +501,7 @@ export default function ImageUpscaler() {
 
                   <Separator />
 
-                  <Button 
+                  <Button
                     onClick={performUpscaling}
                     disabled={!isUpscaleReady()}
                     className="w-full"
