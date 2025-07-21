@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, startTransition} from 'react';
+import { flushSync } from 'react-dom';
 import { Upload, Settings, Download, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -140,12 +141,14 @@ export default function ImageUpscaler() {
     const factors = selectedFactors.slice(0, count).filter(f => f !== null) as string[];
     const file = fileInputRef.current.files[0];
 
-    setProcessingState({
-      isProcessing: true,
-      progress: 0,
-      currentStep: 'Starting upscale...',
-      currentIteration: 0,
-      totalIterations: count
+    startTransition(() => {
+      setProcessingState({
+        isProcessing: true,
+        progress: 0,
+        currentStep: 'Starting upscale...',
+        currentIteration: 0,
+        totalIterations: count
+      });
     });
 
     try {
@@ -165,8 +168,37 @@ export default function ImageUpscaler() {
       let wsReady = false;
 
       if (showProgress) {
-        console.log('🔌 Connecting WebSocket...');
+        console.log(`🔌 Connecting WebSocket to: ws://localhost:8000/ws/${jobId}`);
         ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
+
+        // Set up all handlers before waiting for connection
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            flushSync(() => {
+              console.log('📨 Progress update received:', data);
+
+              startTransition(() => {
+                setProcessingState(prev => ({
+                  ...prev,
+                  progress: Math.round(data.progress * 100),
+                  currentStep: data.message || 'Processing...',
+                  currentIteration: Math.ceil(data.progress * count)
+                }));
+              });
+            });
+          } catch (error) {
+            console.error('❌ Error parsing WebSocket message:', error);
+          }
+        };
+
+        ws.onclose = (event) => {
+          console.log('🔌 WebSocket closed:', event.code, event.reason);
+        };
+
+        ws.onerror = (error) => {
+          console.error('❌ WebSocket error:', error);
+        };
 
         // Wait for WebSocket to open before sending the request
         await new Promise<void>((resolve, reject) => {
@@ -176,47 +208,19 @@ export default function ImageUpscaler() {
           }
 
           ws.onopen = () => {
-            console.log('✅ WebSocket connected');
+            console.log('✅ WebSocket connected and ready');
             wsReady = true;
             resolve();
-          };
-
-          ws.onerror = (error) => {
-            console.error('❌ WebSocket connection failed:', error);
-            resolve(); // Continue even if WebSocket fails
           };
 
           // Timeout after 5 seconds
           setTimeout(() => {
             if (!wsReady) {
-              console.warn('⚠️ WebSocket connection timeout');
+              console.warn('⚠️ WebSocket connection timeout, proceeding anyway');
               resolve();
             }
           }, 5000);
         });
-
-        // Set up message handler
-        if (ws && wsReady) {
-          ws.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              console.log('📨 Progress update:', data);
-
-              setProcessingState(prev => ({
-                ...prev,
-                progress: Math.round(data.progress * 100),
-                currentStep: data.message || 'Processing...',
-                currentIteration: Math.ceil(data.progress * count)
-              }));
-            } catch (error) {
-              console.error('❌ Error parsing WebSocket message:', error);
-            }
-          };
-
-          ws.onclose = (event) => {
-            console.log('🔌 WebSocket closed:', event.code, event.reason);
-          };
-        }
       }
 
       // Send upscale request
@@ -247,12 +251,14 @@ export default function ImageUpscaler() {
         setResultName(result.filename);
         setProcessingComplete(true);
 
-        setProcessingState(prev => ({
-          ...prev,
-          isProcessing: false,
-          currentStep: 'Image upscaled successfully!',
-          progress: 100
-        }));
+        startTransition(() => {
+          setProcessingState(prev => ({
+            ...prev,
+            isProcessing: false,
+            currentStep: 'Image upscaled successfully!',
+            progress: 100
+          }));
+        });
 
         toast({
           title: "Success!",
@@ -269,12 +275,15 @@ export default function ImageUpscaler() {
             console.error('Error cleaning up job:', e);
           }
 
-          setProcessingState(prev => ({
-            ...prev,
-            currentStep: '',
-            progress: 0
-          }));
+          startTransition(() => {
+            setProcessingState(prev => ({
+              ...prev,
+              currentStep: '',
+              progress: 0
+            }));
+          });
         }, 3000);
+
       } else {
         throw new Error(result.message || 'Upscaling failed');
       }
@@ -285,12 +294,14 @@ export default function ImageUpscaler() {
       }
 
     } catch (error) {
-      setProcessingState(prev => ({
-        ...prev,
-        isProcessing: false,
-        currentStep: '',
-        progress: 0
-      }));
+      startTransition(() => {
+        setProcessingState(prev => ({
+          ...prev,
+          isProcessing: false,
+          currentStep: '',
+          progress: 0
+        }));
+      });
 
       toast({
         title: "Error",
