@@ -179,11 +179,13 @@ export default function ImageUpscaler() {
           {/* Main Content */}
           <div className="flex-1 space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl font-bold mb-2">🖼️ Image Upscaler</h1>
+              <h1 className="text-3xl font-bold mb-2">🌬 Image Upscaler</h1>
               <p className="text-gray-600 dark:text-gray-400">Upload an image to upscale using RealESRGAN</p>
             </div>
 
-            {/* Image Display */}
+            {/* Image Display 
+              TODO: Add swipe compare image component and toggle switch to go back to dual view
+            */}
             <ImageDisplay
               originalImage={originalImage}
               resultImage={resultImage}
