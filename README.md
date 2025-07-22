@@ -7,8 +7,11 @@ Prerequistites:
 
 Running the Dev Environment:
 - Install the python packages in requirments.txt
-- Start the fastAPI server with `uvicorn api_server:app --host 127.0.0.1 --port 8000 --reload` or `python api_server.py`
+- Start the fastAPI server
+    - cd to backend folder
+    -  `uvicorn api_server:app --host 127.0.0.1 --port 8000 --reload` or `python api_server.py`
 - Run the electron/next.js frontend
-    - cd to gui folder
+    - cd to frontend folder
+    - pnpm install
     - pnpm run electron-dev
 
