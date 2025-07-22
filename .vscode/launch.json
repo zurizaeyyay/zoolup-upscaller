@@ -20,7 +20,7 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/backend",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "Z:/Tooling/miniconda3/envs/upscaller"
             },
             "justMyCode": false
         },

@@ -4,8 +4,8 @@
         {
             "label": "Start FastAPI Server",
             "type": "shell",
-            "command": "python",
-            "args": ["-m", "uvicorn", "api_server:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+            "command": "Z:/Tooling/miniconda3/Scripts/activate && conda activate upscaller && python",
+            "args": ["-m", "uvicorn", "api_server:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -18,9 +18,6 @@
             },
             "problemMatcher": [],
             "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            }
         },
         {
             "label": "Start Next.js + Electron Dev",
@@ -38,7 +35,6 @@
                 "cwd": "${workspaceFolder}/frontend"
             },
             "problemMatcher": [],
-            "dependsOn": "Start FastAPI Server"
         },
         {
             "label": "Start Full Application",
