@@ -10,3 +10,4 @@ index.html
 gui_test.py
 build/
 results/
+.env
