@@ -1,10 +1,11 @@
 'use client';
 
-import { forwardRef, useCallback } from 'react';
+import { forwardRef, useCallback, useRef, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { IMAGE_FORMATS } from '@/types/upscaler';
+import { gsap } from 'gsap';
 
 interface FileUploadProps {
   fileName: string;
@@ -15,6 +16,33 @@ interface FileUploadProps {
 
 const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
   ({ fileName, onFileUpload, onDrop, onDragOver }, ref) => {
+
+    const uploadAreaRef = useRef(null);
+
+    // Animation for drag enter
+    const handleDragEnter = (e: React.DragEvent) => {
+      e.preventDefault();
+      gsap.to(uploadAreaRef.current, {
+        scale: 1.02,
+        borderColor: 'var(--primary-400)',
+        backgroundColor: 'rgba(248, 56, 146, 0.05)',
+        duration: 0.3,
+        ease: 'power2.out',
+      });
+    };
+
+    // Animation for drag leave
+    const handleDragLeave = (e: React.DragEvent) => {
+      e.preventDefault();
+      gsap.to(uploadAreaRef.current, {
+        scale: 1,
+        borderColor: 'var(--border)',
+        backgroundColor: 'transparent',
+        duration: 0.3,
+        ease: 'power2.out',
+      });
+    };
+
     // Handler to trigger file input click
     const handleBrowseClick = useCallback(() => {
       if (ref && 'current' in ref && ref.current) {
@@ -38,8 +66,14 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
         </CardHeader>
         <CardContent>
           <div
-            onDrop={onDrop}
+            ref={uploadAreaRef}
+            onDrop={(e) => {
+              handleDragLeave(e);
+              onDrop(e);
+            }}
             onDragOver={onDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
             className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
             onClick={handleBrowseClick}
           >
