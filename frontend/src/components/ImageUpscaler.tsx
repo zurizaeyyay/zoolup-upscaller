@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useRef, startTransition } from 'react';
+import { useState, useCallback, useRef, useEffect, startTransition } from 'react';
+import { gsap } from 'gsap';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -162,10 +163,35 @@ export default function ImageUpscaler() {
     document.body.removeChild(link);
   };
 
+  // staggered componnent mount animation
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mainContentRef.current) return;
+
+    // Get direct children in the order they appear
+    const children = Array.from(mainContentRef.current.children);
+
+    // Filter out the title section
+    const components = children.filter((child) => !(child as HTMLElement).classList.contains('text-center'));
+
+    if (components.length > 0) {
+      gsap.from(components, {
+        y: 30,
+        opacity: 0,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: 'power2.out',
+        clearProps: 'all',
+      });
+    }
+  }, []);
+
+  
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto p-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
           {/* Sidebar */}
           <SettingsSidebar
             dimmingFactor={dimmingFactor}
@@ -177,10 +203,12 @@ export default function ImageUpscaler() {
           />
 
           {/* Main Content */}
-          <div className="flex-1 space-y-6">
+          <div ref={mainContentRef} className="flex-1 space-y-6">
             <div className="text-center">
-              <h1 className="text-3xl font-bold mb-2">🌬 Image Upscaler</h1>
-              <p className="text-gray-600 dark:text-gray-400">Upload an image to upscale using RealESRGAN</p>
+              <h1 className="mb-2 text-3xl font-bold">🌬 Image Upscaler</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Upload an image to upscale using RealESRGAN
+              </p>
             </div>
 
             {/* Image Display 
@@ -194,10 +222,7 @@ export default function ImageUpscaler() {
             />
 
             {/* Progress */}
-            <ProgressDisplay
-              processingState={processingState}
-              showProgress={showProgress}
-            />
+            <ProgressDisplay processingState={processingState} showProgress={showProgress} />
 
             {/* File Upload */}
             <FileUpload

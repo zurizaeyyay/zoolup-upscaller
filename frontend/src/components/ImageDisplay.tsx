@@ -1,6 +1,9 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRef, useEffect } from 'react';
+import { gsap } from 'gsap';
+
 
 interface ImageDisplayProps {
   originalImage: string | null;
@@ -15,6 +18,24 @@ export default function ImageDisplay({
   processingComplete,
   dimmingFactor
 }: ImageDisplayProps) {
+  const resultImageRef = useRef(null);
+  
+  // Animate result image when processing completes
+  useEffect(() => {
+    if (processingComplete && resultImage && resultImageRef.current) {
+      gsap.fromTo(
+        resultImageRef.current,
+        { opacity: 0, scale: 0.9 },
+        {
+          opacity: 1,
+          scale: 1,
+          duration: 0.8,
+          ease: 'elastic.out(1, 0.75)',
+        }
+      );
+    }
+  }, [processingComplete, resultImage]);
+
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <Card>
@@ -46,6 +67,7 @@ export default function ImageDisplay({
           <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
             {processingComplete && resultImage ? (
               <img
+                ref={resultImageRef}
                 src={resultImage}
                 alt="Result"
                 className="max-h-full max-w-full object-contain"
