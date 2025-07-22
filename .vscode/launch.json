@@ -18,45 +18,20 @@
                 "8000"
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/backend",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "justMyCode": false
         },
         {
-            "name": "Debug Streamlit GUI",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "streamlit",
-            "args": [
-                "run",
-                "upscaler_gui.py"
-            ],
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            }
-        },
-        {
-            "name": "Python Debugger: Module",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "streamlit",
-            "args": [
-                "run",
-                "${file}"
-            ],
-        },
-        {
             "name": "Electron: Main",
             "type": "node",
             "request": "launch",
-            "cwd": "${workspaceFolder}/gui-nextjs",
-            "runtimeExecutable": "${workspaceFolder}/gui-nextjs/node_modules/.bin/electron",
+            "cwd": "${workspaceFolder}/frontend",
+            "runtimeExecutable": "${workspaceFolder}/frontend/node_modules/.bin/electron",
             "windows": {
-                "runtimeExecutable": "${workspaceFolder}/gui-nextjs/node_modules/.bin/electron.cmd"
+                "runtimeExecutable": "${workspaceFolder}/frontend/node_modules/.bin/electron.cmd"
             },
             "args": ["."],
             "outputCapture": "std"
