@@ -9,31 +9,40 @@ import logging
 import os
 import uuid
 from io import BytesIO
-from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
+
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, Form, BackgroundTasks
+import numpy as np
+from PIL import Image
+from fastapi import (
+    FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks,
+    File, Form, UploadFile,
+    )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
-from PIL import Image
-import numpy as np
 
+
+from config import (
+    API_TITLE, API_VERSION, HOST, PORT, LOG_LEVEL,
+    CORS_ORIGINS, CORS_ALLOW_CREDENTIALS, OUTPUT_DIR
+)
 from upscale import ModelManager
 from util_file import process_byte_input, generate_filename
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Image Upscaler API", version="0.1.0")
+app = FastAPI(title=API_TITLE, version=API_VERSION)
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js dev server
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -241,9 +250,7 @@ def upscale_job(
 
         # 6) Save final result
         output_filename = generate_filename(original_filename, scale_list, resample_mode)
-        out_dir = os.path.join("results", "images")
-        os.makedirs(out_dir, exist_ok=True)
-        out_path = os.path.join(out_dir, output_filename)
+        out_path = os.path.join(OUTPUT_DIR, output_filename)
 
         # If PIL.Image:
         if isinstance(current_img, Image.Image):
@@ -339,4 +346,4 @@ async def cleanup_job(job_id: str):
     return {"message": "Job cleaned up successfully"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+    uvicorn.run(app, host=HOST, port=PORT, log_level=LOG_LEVEL)
