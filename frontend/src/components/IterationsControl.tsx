@@ -1,6 +1,6 @@
 'use client';
 
-import { Play } from 'lucide-react';
+import { ImageUpscale } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -50,7 +50,7 @@ export default function IterationsControl({
               step={1}
               className="w-full"
             />
-            <div className="flex justify-between text-sm text-gray-500 mt-1">
+            <div className="mt-1 flex justify-between text-sm text-gray-500">
               <span>1</span>
               <span>{iterationCount[0]}</span>
               <span>{MAX_NODES}</span>
@@ -58,7 +58,7 @@ export default function IterationsControl({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: iterationCount[0] }, (_, i) => (
             <div key={i} className="space-y-2">
               <Label>Iteration {i + 1}</Label>
@@ -86,15 +86,18 @@ export default function IterationsControl({
 
         <Separator />
 
-        <Button
-          onClick={onUpscale}
-          disabled={!isUpscaleReady}
-          className="w-full"
-          size="lg"
-        >
-          <Play className="h-4 w-4 mr-2" />
-          {isProcessing ? 'Processing...' : 'Upscale'}
-        </Button>
+        <div className="flex w-full justify-center">
+          <Button
+            onClick={onUpscale}
+            disabled={!isUpscaleReady}
+            variant="outline"
+            className="w-q-full"
+            size="lg"
+          >
+            <ImageUpscale className="mr-2 h-4 w-4" />
+            {isProcessing ? 'Processing...' : 'Upscale'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

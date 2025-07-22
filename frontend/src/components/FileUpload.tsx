@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef } from 'react';
+import { forwardRef, useCallback } from 'react';
 import { Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,51 +13,66 @@ interface FileUploadProps {
   onDragOver: (e: React.DragEvent) => void;
 }
 
-const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(({
-  fileName,
-  onFileUpload,
-  onDrop,
-  onDragOver
-}, ref) => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload an Image</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors cursor-pointer"
-          onClick={() => (ref as React.RefObject<HTMLInputElement>)?.current?.click()}
-        >
-          <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-lg mb-2">Drag and drop file here</p>
-          <p className="text-sm text-gray-500 mb-4">
-            Limit 200MB per file • PNG, JPG, JPEG, TIFF, BMP, GIF, TIF
-          </p>
-          <Button variant="outline">Browse files</Button>
-          <input
-            ref={ref}
-            type="file"
-            accept={IMAGE_FORMATS.join(',')}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onFileUpload(file);
-            }}
-            className="hidden"
-          />
-        </div>
+const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
+  ({ fileName, onFileUpload, onDrop, onDragOver }, ref) => {
+    // Handler to trigger file input click
+    const handleBrowseClick = useCallback(() => {
+      if (ref && 'current' in ref && ref.current) {
+        ref.current.click();
+      }
+    }, [ref]);
 
-        {fileName && (
-          <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <p className="text-sm">filename: {fileName}</p>
+    // Separate handler for button to prevent bubbling (when it triggers twice)
+    const handleButtonClick = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent bubbling to parent div
+        handleBrowseClick();
+      },
+      [handleBrowseClick]
+    );
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload an Image</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+            onClick={handleBrowseClick}
+          >
+            <Upload className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <p className="mb-2 text-lg">Drag and drop file here</p>
+            <p className="mb-4 text-sm text-gray-500">
+              Limit 200MB per file • PNG, JPG, JPEG, TIFF, BMP, GIF, TIF
+            </p>
+            <Button variant="outline" type="button" onClick={handleButtonClick}>
+              Browse files
+            </Button>
+            <input
+              ref={ref}
+              type="file"
+              accept={IMAGE_FORMATS.join(',')}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onFileUpload(file);
+              }}
+              className="hidden"
+            />
           </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-});
+
+          {fileName && (
+            <div className="mt-4 rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
+              <p className="text-sm">Filename: {fileName}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+);
 
 FileUpload.displayName = 'FileUpload';
 

@@ -6,18 +6,19 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
+    width: 1600,
     height: 800,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 700,
+    minHeight: 500,
+    title: 'Zoolup Image Upscaler',
+    icon: path.join(__dirname, 'icon.png'), 
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
     },
     show: false,
-    title: 'Image Upscaler'
   });
 
   // Try to detect the Next.js dev server port, default to 3000
