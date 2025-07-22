@@ -43,6 +43,16 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
       });
     };
 
+    const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      handleDragLeave(e);
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        onFileUpload(files[0]);
+      }
+    };
+
     // Handler to trigger file input click
     const handleBrowseClick = useCallback(() => {
       if (ref && 'current' in ref && ref.current) {
@@ -67,11 +77,11 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
         <CardContent>
           <div
             ref={uploadAreaRef}
-            onDrop={(e) => {
-              handleDragLeave(e);
-              onDrop(e);
+            onDrop={handleDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              onDragOver(e);
             }}
-            onDragOver={onDragOver}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"

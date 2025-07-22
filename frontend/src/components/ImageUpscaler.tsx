@@ -50,9 +50,9 @@ export default function ImageUpscaler() {
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!IMAGE_FORMATS.includes(fileExtension)) {
       toast({
-        title: "Invalid file type",
+        title: 'Invalid file type',
         description: `Please select an image file: ${IMAGE_FORMATS.join(', ')}`,
-        variant: "destructive"
+        variant: 'destructive',
       });
       return;
     }
@@ -60,6 +60,13 @@ export default function ImageUpscaler() {
     setFileName(file.name);
     setProcessingComplete(false);
     setResultImage(null);
+
+    // Update the file input ref with the dropped file!!!
+    if (fileInputRef.current) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInputRef.current.files = dataTransfer.files;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -69,13 +76,17 @@ export default function ImageUpscaler() {
     reader.readAsDataURL(file);
   }, [toast]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
+    e.stopPropagation();
+
+    // Get the files from the drop event
+    const files = e.dataTransfer.files;
     if (files.length > 0) {
+      // Use the same handler as the file input
       handleFileUpload(files[0]);
     }
-  }, [handleFileUpload]);
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
