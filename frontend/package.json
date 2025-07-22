@@ -1,5 +1,5 @@
 {
-  "name": "gui-nextjs",
+  "name": "zoolup-upscaler",
   "version": "0.1.0",
   "private": true,
   "main": "public/electron.js",
@@ -51,7 +51,7 @@
   },
   "build": {
     "appId": "com.yourcompany.image-upscaler",
-    "productName": "Image Upscaler",
+    "productName": "Zoolup Image Upscaler",
     "directories": {
       "output": "dist"
     },

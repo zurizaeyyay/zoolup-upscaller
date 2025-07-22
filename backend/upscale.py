@@ -46,7 +46,7 @@ class ModelManager:
         import torch
         import_model()
         
-        from RealESRGAN import RealESRGAN
+        from RealESRGAN import RealESRGAN # type: ignore
         
         print(f'Initializing model with scale x{scale}, resample mode: {resample_mode}...')
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
