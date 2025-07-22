@@ -120,6 +120,7 @@ async def get_available_models():
         }
     }
 
+#TODO: Automatically Reject job if image too large 
 @app.post("/upscale", status_code=202)
 async def upscale_image(
     background_tasks: BackgroundTasks,
@@ -273,7 +274,9 @@ def upscale_job(
     except Exception as e:
         logger.error(f"[upscale_job:{job_id}] error: {e}")
         state.active_jobs[job_id] = {"status": "error", "message": str(e)}
-        
+
+
+# TODO: Add option to cancel a job
 @app.get("/job/{job_id}")
 async def get_job_status(job_id: str):
     """Get the status of an upscaling job"""
