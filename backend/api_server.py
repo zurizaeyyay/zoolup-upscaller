@@ -9,7 +9,7 @@ import logging
 import os
 import uuid
 from io import BytesIO
-from typing import Dict, List
+from typing import Dict, Union, List
 
 
 import uvicorn
@@ -166,7 +166,7 @@ def upscale_job(
     job_id: str,
     img_file: Image,
     original_filename: str,
-    scales: str | list[str],
+    scales: Union[str, List[str]],
     resample_mode: str,
     show_progress: bool
 ):

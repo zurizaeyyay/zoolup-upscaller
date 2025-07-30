@@ -49,7 +49,10 @@ class ModelManager:
         from RealESRGAN import RealESRGAN # type: ignore
         
         print(f'Initializing model with scale x{scale}, resample mode: {resample_mode}...')
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print('Device:', self.device)
         
         # Ensure weights directory exists
