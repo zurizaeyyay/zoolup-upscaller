@@ -1,5 +1,6 @@
 # Quick Setup:
-- Clone or download this repo
+1. Clone or download this repo
+2. Use the setup script to automatically install the required prerequistites
 ### Windows
 - Click the **setup.bat** file in the root and then press enter to run the app
 -  or
