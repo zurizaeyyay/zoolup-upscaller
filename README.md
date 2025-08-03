@@ -1,11 +1,25 @@
-Usage:
+# Quick Setup:
+- Clone or download this repo
+### Windows
+- Click the **setup.bat** file in the root and then press enter to run the app
+-  or
+- if prerequisities are installed you can try running the **launch.bat** in the root
+### MacOS
+- Run the **setup.sh** file in the project root. run `chmod +x setup.sh` if it won't launch
+-  or
+- if prerequisities are installed you can try running the **launch.sh**. Run `chmod +x launch.sh` if it won't launch
 
-Prerequistites:
-- Install python and the packages in requirments.txt
-- Ensure you have CUDA installed and running correctly (optional but CPU upscalling will be slow)
-- Install [REAL-ESREGAN](https://github.com/zurizaeyyay/Real-ESRGAN) or I recommend copying that repo into the root
+# Prerequistites:
+- Clone or download this repo
+- Install [python 3.10](https://www.python.org/downloads/release/python-3108/)
+- Install [REAL-ESREGAN](https://github.com/zurizaeyyay/Real-ESRGAN) via the command `pip install git+https://github.com/zurizaeyyay/Real-ESRGAN.git` WARNING: Install git first
+  or you can copy that repo folder into the backend folder instead
+- Install [node.js](https://nodejs.org/en/download) (i am using v22)
+- (optional) Ensure you have [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64&target_version=11&target_type=exe_local) installed and running correctly for GPU upscalling (if you have an NVIDIA GPU) 
+- (optional) install [pnpm](https://pnpm.io/installation). If not dev inclined run all commands that say `pnpm` with `npm` instead (this one is already installed for you above)
 
-Running the Dev Environment:
+
+# Running the Dev Environment Manually:
 - Install the python packages in requirments.txt (optionally inside a virtual environment)
     - `pip install --no-cache-dir -r /code/requirements.txt`
 - Start the fastAPI server
@@ -18,4 +32,3 @@ Running the Dev Environment:
     - cd to frontend folder
     - pnpm install
     - pnpm run electron-dev
-
