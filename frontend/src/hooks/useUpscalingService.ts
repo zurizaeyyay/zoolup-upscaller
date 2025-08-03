@@ -4,6 +4,9 @@ import { startTransition } from 'react';
 import { flushSync } from 'react-dom';
 import { ProcessingState } from '@/types/upscaler';
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+
 interface UpscalingServiceProps {
   jobId: string;
   file: File;
@@ -37,8 +40,8 @@ export const useUpscalingService = () => {
     let wsReady = false;
 
     if (showProgress) {
-      console.log(`🔌 Connecting WebSocket to: ws://localhost:8000/ws/${jobId}`);
-      ws = new WebSocket(`ws://localhost:8000/ws/${jobId}`);
+      console.log(`🔌 Connecting WebSocket to: ws://${apiHost}/ws/${jobId}`);
+      ws = new WebSocket(`ws://${apiHost}/ws/${jobId}`);
 
       // Set up all handlers before waiting for connection
       ws.onmessage = async (event) => {
@@ -59,7 +62,7 @@ export const useUpscalingService = () => {
 
           // whenever server says 1.0 progress (100%), check if final stage
           if (data.progress === 1) {
-            const statusRes = await fetch(`http://localhost:8000/job/${jobId}`);
+            const statusRes = await fetch(`${apiUrl}/job/${jobId}`);
             if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
             const statusData = await statusRes.json() as {
               jobId: string;
@@ -71,7 +74,7 @@ export const useUpscalingService = () => {
             
             if (statusData.status === 'completed') {
               // fetch the upscaled image
-              const imgResp = await fetch(`http://localhost:8000/download/${jobId}`);
+              const imgResp = await fetch(`${apiUrl}/download/${jobId}`);
               if (!imgResp.ok) {
                 throw new Error(`Download failed: ${imgResp.status}`);
               }
@@ -94,10 +97,13 @@ export const useUpscalingService = () => {
 
               toast({ title: 'Success!', description: 'Image upscaled successfully.' });
 
+              // TODO: Allow user option (when running client-side) to keep all result images
+              // Currently it gets the blob and one the front-end has the result its deleted on the backend.
+              // Modify so logic is easier for multiple images
               // cleanup server‐side job
               setTimeout(async () => {
                 try {
-                  await fetch(`http://localhost:8000/job/${jobId}`, { method: 'DELETE' });
+                  await fetch(`${apiUrl}/job/${jobId}`, { method: 'DELETE' });
                 } catch (e) {
                   console.error('Cleanup error:', e);
                 }
@@ -144,7 +150,7 @@ export const useUpscalingService = () => {
       formData.append('job_id', jobId);
 
       // Send upscale request
-      const response = await fetch('http://localhost:8000/upscale', {
+      const response = await fetch(`${apiUrl}/upscale`, {
         method: 'POST',
         body: formData,
       });

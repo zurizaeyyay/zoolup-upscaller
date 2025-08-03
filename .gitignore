@@ -11,3 +11,4 @@ gui_test.py
 build/
 results/
 .env
+backend/Models

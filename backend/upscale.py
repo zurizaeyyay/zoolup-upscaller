@@ -14,7 +14,7 @@ import tarfile
 import sys
 import os
 from io import BytesIO
-from util_file import import_model
+from .util_file import import_model
 
 
 # Directory to store model weights. Set to app root/weights

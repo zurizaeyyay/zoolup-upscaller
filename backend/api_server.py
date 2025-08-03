@@ -24,12 +24,12 @@ from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
 
-from config import (
+from .config import (
     API_TITLE, API_VERSION, HOST, PORT, LOG_LEVEL,
     CORS_ORIGINS, CORS_ALLOW_CREDENTIALS, OUTPUT_DIR
 )
-from upscale import ModelManager
-from util_file import process_byte_input, generate_filename
+from .upscale import ModelManager
+from .util_file import process_byte_input, generate_filename
 
 
 # Configure logging
@@ -148,7 +148,7 @@ async def upscale_image(
     if job_id == None:
         job_id = str(uuid.uuid4())
     
-    # send initial “accepted” response
+    # send initial 'accepted' response
     background_tasks.add_task(
         run_in_threadpool,
         upscale_job,  # a sync function that wraps your loop & ModelManager calls
@@ -172,7 +172,8 @@ def upscale_job(
 ):
     """
     Synchronous helper to run in a thread pool.
-    - raw_file_bytes: the body of the uploaded file
+    - job_id: unique identifier for the job
+    - img_file: the uploaded image file as PIL Image or numpy array
     - original_filename: e.g. "photo.jpg"
     - scales: JSON string or list of scale factors
     - resample_mode: interpolation mode
@@ -245,13 +246,14 @@ def upscale_job(
             else:
                 current_img = result
 
-            # send “this scale done” update
+            # send 'this scale done' update
             if show_progress:
                 asyncio.run(send_progress_update(job_id, 1.0, f"Completed scale x{scale}"))
 
         # 6) Save final result
         output_filename = generate_filename(original_filename, scale_list, resample_mode)
-        out_path = os.path.join(OUTPUT_DIR, output_filename)
+        current_dir = os.path.dirname(__file__)
+        out_path = os.path.join(current_dir, OUTPUT_DIR, output_filename)
 
         # If PIL.Image:
         if isinstance(current_img, Image.Image):

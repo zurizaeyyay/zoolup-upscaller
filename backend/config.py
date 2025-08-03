@@ -40,4 +40,4 @@ CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "True").lower() == 
 # File storage settings
 out_dir = os.path.join("results", "images")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", out_dir)
-Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+Path(os.path.join(current_dir, OUTPUT_DIR)).mkdir(parents=True, exist_ok=True)

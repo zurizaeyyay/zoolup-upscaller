@@ -4,8 +4,8 @@
         {
             "label": "Start FastAPI Server",
             "type": "shell",
-            "command": "Z:/Tooling/miniconda3/Scripts/activate && conda activate upscaller && python",
-            "args": ["-m", "uvicorn", "api_server:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+            "command": "${env:HOME}/Tooling/miniconda3/Scripts/activate && conda activate upscaller && python",
+            "args": ["-m", "uvicorn", "backend.api_server:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -14,7 +14,7 @@
                 "panel": "new"
             },
             "options": {
-                "cwd": "${workspaceFolder}/backend"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
             "isBackground": true,
