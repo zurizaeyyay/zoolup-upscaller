@@ -35,3 +35,68 @@ conda env called "upscaller" with python 3.12 installed
     - cd to frontend folder
     - pnpm install
     - pnpm run electron-dev
+
+
+# Production Build Process:
+
+## Prerequisites for Building:
+- Complete the "Quick Setup" above first
+- Install PyInstaller: `pip install pyinstaller`
+- Ensure you're in the `upscaller` conda environment (if using conda)
+
+### 1. Create Standalone Backend
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create standalone executable (no Python required for users)
+pyinstaller --onedir --name upscaler-backend \
+  --add-data "Real-ESRGAN:Real-ESRGAN" \
+  --add-data "../weights:weights" \
+  --hidden-import uvicorn \
+  --hidden-import fastapi \
+  --hidden-import websockets \
+  --hidden-import torch \
+  --hidden-import torchvision \
+  --hidden-import RealESRGAN \
+  --clean \
+  api_server.py
+
+# Copy the standalone backend to frontend resources
+cp -r dist/upscaler-backend ../frontend/backend-bundle/
+```
+
+### 2. Build Electron App
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Generate icons (Mac only, first time)
+cd public && ./generate_icons.sh && cd ..
+
+# Install dependencies
+pnpm install
+
+# Build for your platform
+pnpm run electron-pack-mac     # Mac only
+pnpm run electron-pack-win     # Windows only  
+pnpm run electron-pack-linux   # Linux only
+pnpm run electron-pack-all     # All platforms
+
+# Output will be in frontend/dist/
+```
+
+### 3. Platform-Specific Notes:
+
+**Mac:**
+- For distribution, Apple Developer account needed for code signing
+- Universal builds (Intel + Apple Silicon) are created automatically
+- Output: `.dmg` installer and `.zip` archive
+
+**Windows:**
+- Output: `.exe` installer and `.zip` archive  
+- Installer includes desktop shortcut and start menu entry
+
+**Linux:**
+- Output: `.AppImage` and `.tar.gz` archive
+- AppImage is portable, no installation required

@@ -16,7 +16,6 @@ import os
 from io import BytesIO
 from .util_file import import_model
 
-#TODO: FIX RESAMPLING SELECTION AGAIN (DOUBLE CHECK WORKING WITH TEXT)
 #TODO: ADD UI TOGGLE OPTION FOR RESAMPLING MODE IN OUTPUT FILENAME
 #TODO: Fix special character filename wierdness. 
     # details (on mac i had 16/9 in the file name it was displayed at 16:9 and output as 16_9)
