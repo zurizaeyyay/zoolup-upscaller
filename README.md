@@ -6,9 +6,11 @@
 -  or
 - if prerequisities are installed you can try running the **launch.bat** in the root
 ### MacOS
-- Run the **setup.sh** file in the project root. run `chmod +x setup.sh` if it won't launch
+- Note: if you dont want the dependancies and python 3.12 installed globalled created a 
+conda env called "upscaller" with python 3.12 installed
+- Open the terminal and run **./setup.sh** file in the project root
 -  or
-- if prerequisities are installed you can try running the **launch.sh**. Run `chmod +x launch.sh` if it won't launch
+- if prerequisities are installed you can try running the **./launch.sh**
 
 # Prerequistites:
 - Clone or download this repo

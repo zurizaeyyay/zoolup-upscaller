@@ -24,29 +24,61 @@ if ! command -v brew &>/dev/null; then
     exit 1
 fi
 
-# --- Check Python 3.9+ ---
-if ! command -v python3 &>/dev/null; then
-    echo "Python not found."
-    if prompt_install "Python 3.9"; then
-        brew install python@3.9
-        export PATH="/opt/homebrew/opt/python@3.9/bin:$PATH"
-    else
-        echo "Skipping Python installation."
+# --- Check for conda environment and Python version ---
+PYTHON_CMD="python3"
+PYTHON_VERSION=""
+CONDA_ENV_PYTHON=""
+
+# First, try to find and source conda profile
+if command -v conda &>/dev/null; then
+    CONDA_BASE=$(conda info --base 2>/dev/null)
+    CONDA_PROFILE="$CONDA_BASE/etc/profile.d/conda.sh"
+    if [[ -f "$CONDA_PROFILE" ]]; then
+        source "$CONDA_PROFILE"
+        
+        # Check if we're already in upscaller environment or if it exists
+        if [[ "$CONDA_DEFAULT_ENV" == "upscaller" ]]; then
+            echo "Already in 'upscaller' conda environment"
+            PYTHON_CMD="python"
+            CONDA_ENV_PYTHON="yes"
+        elif conda env list | grep -q "upscaller"; then
+            echo "Found 'upscaller' conda environment, activating..."
+            conda activate upscaller
+            PYTHON_CMD="python"
+            CONDA_ENV_PYTHON="yes"
+        fi
     fi
 fi
 
-pyver=$(python3 --version 2>&1 | awk '{print $2}')
-IFS='.' read -r major minor patch <<< "$pyver"
-if [[ "$major" -lt 3 || "$major" -eq 3 && "$minor" -lt 10 ]]; then
-    echo "Python version $pyver is less than 3.9."
-    if prompt_install "Python 3.9"; then
-        brew install python@3.9
-        export PATH="/opt/homebrew/opt/python@3.9/bin:$PATH"
+# Check Python version (either from conda env or system)
+if [[ "$CONDA_ENV_PYTHON" == "yes" ]]; then
+    PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+    echo "Checking Python version in conda environment: $PYTHON_VERSION"
+else
+    PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+    echo "Checking system Python version: $PYTHON_VERSION"
+fi
+
+IFS='.' read -r major minor patch <<< "$PYTHON_VERSION"
+if [[ "$major" -lt 3 || ("$major" -eq 3 && "$minor" -lt 9) || ("$major" -eq 3 && "$minor" -gt 12) ]]; then
+    if [[ "$CONDA_ENV_PYTHON" == "yes" ]]; then
+        echo "Python version $PYTHON_VERSION in conda environment is outside the recommended range (3.9-3.12)."
+        echo "Consider recreating your conda environment with a compatible Python version."
     else
-        echo "Skipping Python installation."
+        echo "System Python version $PYTHON_VERSION is outside the recommended range (3.9-3.12)."
+        if prompt_install "Python 3.12"; then
+            brew install python@3.12
+            export PATH="/opt/homebrew/opt/python@3.12/bin:$PATH"
+        else
+            echo "Skipping Python installation."
+        fi
     fi
 else
-    echo "Python $pyver detected."
+    if [[ "$CONDA_ENV_PYTHON" == "yes" ]]; then
+        echo "Python $PYTHON_VERSION in conda environment is compatible (within range 3.9-3.12)."
+    else
+        echo "System Python $PYTHON_VERSION detected (within recommended range 3.9-3.12)."
+    fi
 fi
 
 # --- Check Git ---
@@ -90,7 +122,7 @@ fi
 if [ -f "$BACKEND_DIR/.env" ]; then
     while IFS='=' read -r key value; do
         if [[ "$key" == "CONDA_ACTIVATE" ]]; then
-            CONDA_ACTIVATE_CMD="$value"
+            CONDA_ACTIVATE_CMD=${value//\"/}  # remove quotes if any
         fi
     done < "$BACKEND_DIR/.env"
 fi
@@ -98,11 +130,14 @@ fi
 echo "CONDA_ACTIVATE_CMD: [$CONDA_ACTIVATE_CMD]"
 
 # --- Install backend requirements unless managed by Conda ---
-if [ -z "$CONDA_ACTIVATE_CMD" ] && [ "$CONDA_DEFAULT_ENV" != "upscaller" ]; ; then
-    echo "Installing Python backend requirements..."
+if [ -z "$CONDA_ACTIVATE_CMD" ] && [ "$CONDA_DEFAULT_ENV" != "upscaller" ] && [ "$CONDA_ENV_PYTHON" != "yes" ]; then
+    echo "Installing Python backend requirements using system Python..."
     python3 -m pip install --no-cache-dir -r "$BACKEND_DIR/requirements.txt"
+elif [ "$CONDA_ENV_PYTHON" = "yes" ]; then
+    echo "Installing Python backend requirements in conda environment..."
+    python -m pip install --no-cache-dir -r "$BACKEND_DIR/requirements.txt"
 else
-    echo "Skipping pip install because CONDA_ACTIVATE is set."
+    echo "Skipping pip install because CONDA_ACTIVATE is set or already in upscaller environment."
 fi
 
 
@@ -111,21 +146,31 @@ if [ -d "$BACKEND_DIR/Real-ESRGAN" ]; then
     echo "Real-ESRGAN folder found, skipping installation."
 else
     echo "Installing Real-ESRGAN..."
-    python3 -m pip install --no-cache-dir git+https://github.com/zurizaeyyay/Real-ESRGAN.git
+    if [ "$CONDA_ENV_PYTHON" = "yes" ] || [ "$CONDA_DEFAULT_ENV" = "upscaller" ] || [ -n "$CONDA_ACTIVATE_CMD" ]; then
+        python -m pip install --no-cache-dir git+https://github.com/zurizaeyyay/Real-ESRGAN.git
+    else
+        python3 -m pip install --no-cache-dir git+https://github.com/zurizaeyyay/Real-ESRGAN.git
+    fi
 fi
 
 # --- Install frontend dependencies ---
 echo "Installing frontend dependencies..."
-cd "$FRONTEND_DIR" || exit
-if command -v pnpm &>/dev/null; then
-    echo "Using pnpm..."
-    pnpm install
+if cd "$FRONTEND_DIR"; then
+    if command -v pnpm &>/dev/null; then
+        echo "Using pnpm..."
+        pnpm install
+    else
+        echo "Using npm..."
+        npm install
+    fi
+    cd ..
 else
-    echo "Using npm..."
-    npm install
+    echo "Error: Could not change to frontend directory"
+    exit 1
 fi
-cd ..
 
 echo "Setup complete."
 
+# Launch the application
+echo "Launching application..."
 zsh launch.sh
