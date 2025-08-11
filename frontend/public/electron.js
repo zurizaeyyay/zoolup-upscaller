@@ -9,6 +9,11 @@ const openDevtools = process.env.OPEN_DEVTOOLS === 'true' && !isPacked;
 let mainWindow;
 let backendProcess = null;
 
+// Suppress security warnings only in development to avoid console noise
+if (isDev) {
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
@@ -16,7 +21,7 @@ function createWindow() {
     minWidth: 700,
     minHeight: 500,
     title: 'Zoolup Image Upscaler',
-    icon: path.join(__dirname, 'icon.png'), 
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,8 +33,8 @@ function createWindow() {
 
   // Try to detect the Next.js dev server port, default to 3000
   const devPort = process.env.NEXT_DEV_PORT || '3000';
-  const startUrl = isDev 
-    ? `http://localhost:${devPort}` 
+  const startUrl = isDev
+    ? `http://localhost:${devPort}`
     : `file://${path.join(__dirname, '../out/index.html')}`;
 
   console.log('Loading URL:', startUrl);
@@ -38,7 +43,7 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    
+
     if (openDevtools) {
       mainWindow.webContents.openDevTools();
     }
@@ -50,7 +55,8 @@ function createWindow() {
 
   // Handle navigation for SPA
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    if (errorCode === -6) { // ERR_FILE_NOT_FOUND
+    if (errorCode === -6) {
+      // ERR_FILE_NOT_FOUND
       mainWindow.loadURL(startUrl);
     }
   });
@@ -60,7 +66,7 @@ app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-  app.quit();
+    app.quit();
   }
 });
 
@@ -75,7 +81,7 @@ app.on('activate', () => {
 function startBackendIfAvailable() {
   try {
     const platform = process.platform; // 'win32' | 'darwin' | 'linux'
-    const arch = process.arch;         // 'x64' | 'arm64' | ...
+    const arch = process.arch; // 'x64' | 'arm64' | ...
     const binaryName = platform === 'win32' ? 'backend.exe' : 'backend';
 
     // Prefer env override; otherwise resolve from packaged resources
@@ -127,22 +133,18 @@ if (!isDev) {
 ipcMain.handle('select-file', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    filters: [
-      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }
-    ]
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
   });
-  
+
   return result.filePaths[0];
 });
 
 ipcMain.handle('save-file', async (event, defaultPath) => {
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath,
-    filters: [
-      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }
-    ]
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
   });
-  
+
   return result.filePath;
 });
 
