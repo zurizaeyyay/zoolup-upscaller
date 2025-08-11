@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useCallback, useRef, useEffect } from 'react';
+import { forwardRef, useCallback, useRef } from 'react';
 import { Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,12 +53,26 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
       }
     };
 
-    // Handler to trigger file input click
-    const handleBrowseClick = useCallback(() => {
-      if (ref && 'current' in ref && ref.current) {
+    // Handler to trigger file input click (web) or Electron dialog
+    const handleBrowseClick = useCallback(async () => {
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        const filePath = await window.electronAPI.selectFile();
+        if (filePath) {
+          // In Electron, read file and create a File object (best-effort)
+          const base64 = await window.electronAPI.readFile(filePath);
+          const binary = atob(base64);
+          const len = binary.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+          const blob = new Blob([bytes.buffer]);
+          const name = filePath.split(/[\\/]/).pop() || 'image';
+          const file = new File([blob], name);
+          onFileUpload(file);
+        }
+      } else if (ref && 'current' in ref && ref.current) {
         ref.current.click();
       }
-    }, [ref]);
+    }, [ref, onFileUpload]);
 
     // Separate handler for button to prevent bubbling (when it triggers twice)
     const handleButtonClick = useCallback(

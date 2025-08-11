@@ -79,7 +79,13 @@
       "!node_modules/.cache/**/*",
       "!**/.DS_Store"
     ],
-    "extraResources": [],
+    "extraResources": [
+      {
+        "from": "resources/backends/",
+        "to": "backends",
+        "filter": ["**/*"]
+      }
+    ],
     "mac": {
       "category": "public.app-category.graphics-design",
       "target": [

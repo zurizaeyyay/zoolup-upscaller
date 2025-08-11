@@ -8,6 +8,24 @@ const nextConfig: NextConfig = {
   },
   distDir: 'out',
   //devIndicators: false,
+  webpack: (config, { isServer }) => {
+    // Prevent bundling Node/Electron modules in the client build
+    if (!isServer) {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        electron: false,
+        fs: false,
+        path: false,
+        child_process: false,
+        net: false,
+        tls: false,
+        os: false,
+        module: false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

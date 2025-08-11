@@ -3,9 +3,11 @@
 import { startTransition } from 'react';
 import { flushSync } from 'react-dom';
 import { ProcessingState } from '@/types/upscaler';
+import { getApiBase } from '@/lib/utils';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+const apiBase = getApiBase();
+const apiUrl = apiBase; // full base
+const apiHost = apiBase.replace(/^https?:\/\//, '');
 
 interface UpscalingServiceProps {
   jobId: string;
