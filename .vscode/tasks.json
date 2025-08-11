@@ -4,9 +4,12 @@
         {
             "label": "Start FastAPI Server",
             "type": "shell",
-            "command": "Z:/Tooling/miniconda3/Scripts/activate && conda activate upscaller && python",
-            "args": ["-m", "uvicorn", "api_server:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
-            "group": "build",
+            "command": "zsh",
+  "args": [
+    "-c",
+    "source $HOME/Tooling/miniconda3/etc/profile.d/conda.sh && conda activate upscaller && python -m uvicorn api_server:app --host 127.0.0.1 --port 8000 --reload"
+  ],
+  "group": "build",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
