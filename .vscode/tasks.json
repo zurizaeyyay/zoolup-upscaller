@@ -4,8 +4,11 @@
         {
             "label": "Start FastAPI Server",
             "type": "shell",
-            "command": "${env:HOME}/Tooling/miniconda3/Scripts/activate && conda activate upscaller && python",
-            "args": ["-m", "uvicorn", "backend.api_server:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+            "command": "cmd",
+            "args": [
+                "/c",
+                "call \"${env:USERPROFILE}\\Tooling\\miniconda3\\Scripts\\activate.bat\" upscaller && python -m uvicorn backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -17,7 +20,7 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "isBackground": true,
+            "isBackground": true
         },
         {
             "label": "Start Next.js + Electron Dev",
