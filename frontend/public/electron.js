@@ -1,6 +1,8 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const isDev = process.env.NODE_ENV === 'development';
+const isPacked = app.isPackaged;
+const openDevtools = process.env.OPEN_DEVTOOLS === 'true' && !isPacked;
 
 let mainWindow;
 
@@ -34,7 +36,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     
-    if (isDev) {
+    if (openDevtools) {
       mainWindow.webContents.openDevTools();
     }
   });

@@ -2,14 +2,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Start FastAPI Server",
+            "label": "Start FastAPI Server (win)",
             "type": "shell",
-            "command": "zsh",
-  "args": [
-    "-c",
-    "source $HOME/Tooling/miniconda3/etc/profile.d/conda.sh && conda activate upscaller && python -m uvicorn api_server:app --host 127.0.0.1 --port 8000 --reload"
-  ],
-  "group": "build",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "call \"${env:USERPROFILE}\\Tooling\\miniconda3\\Scripts\\activate.bat\" upscaller && python -m uvicorn backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
+            ],
+            "group": "build",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -17,10 +17,31 @@
                 "panel": "new"
             },
             "options": {
-                "cwd": "${workspaceFolder}/backend"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "isBackground": true,
+            "isBackground": true
+        },
+        {
+            "label": "Start FastAPI Server (mac)",
+            "type": "shell",
+            "command": "zsh",
+            "args": [
+                "-c",
+                "source $HOME/Tooling/miniconda3/etc/profile.d/conda.sh && conda activate upscaller && python -m uvicorn backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "isBackground": true
         },
         {
             "label": "Start Next.js + Electron Dev",
@@ -37,15 +58,27 @@
             "options": {
                 "cwd": "${workspaceFolder}/frontend"
             },
-            "problemMatcher": [],
+            "problemMatcher": []
         },
         {
-            "label": "Start Full Application",
+            "label": "Start Full Application (win)",
             "dependsOrder": "parallel",
-            "dependsOn": [
-                "Start FastAPI Server",
-                "Start Next.js + Electron Dev"
-            ],
+            "dependsOn": ["Start FastAPI Server (win)", "Start Next.js + Electron Dev"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Start Full Application (mac)",
+            "dependsOrder": "parallel",
+            "dependsOn": ["Start FastAPI Server (mac)", "Start Next.js + Electron Dev"],
             "group": {
                 "kind": "build",
                 "isDefault": true

@@ -12,3 +12,7 @@ build/
 results/
 .env
 .DS_Store
+backend/Models
+
+# Do NOT ignore .env in frontend/. Used for shared envs
+!frontend/.env

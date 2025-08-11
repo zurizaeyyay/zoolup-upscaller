@@ -14,7 +14,7 @@ import tarfile
 import sys
 import os
 from io import BytesIO
-from util_file import import_model
+from .util_file import import_model
 
 #TODO: FIX RESAMPLING SELECTION AGAIN (DOUBLE CHECK WORKING WITH TEXT)
 #TODO: ADD UI TOGGLE OPTION FOR RESAMPLING MODE IN OUTPUT FILENAME
