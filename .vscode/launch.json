@@ -10,7 +10,7 @@
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "api_server:app",
+                "backend-wrap.backend.api_server:app",
                 "--reload",
                 "--host",
                 "127.0.0.1",
@@ -18,7 +18,7 @@
                 "8000"
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/backend",
+            "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${env:HOME}/Tooling/miniconda3/envs/upscaller"
             },

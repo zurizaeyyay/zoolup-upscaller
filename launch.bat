@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: Set backend and frontend paths
-set BACKEND_DIR=backend
+set BACKEND_DIR=backend-wrap\backend
 set FRONTEND_DIR=frontend
 
 :: Initialize CONDA_ACTIVATE_CMD variable empty
@@ -24,10 +24,10 @@ set CONDA_ACTIVATE_CMD=%CONDA_ACTIVATE_CMD:"=%
 if defined CONDA_ACTIVATE_CMD (
     echo Using conda activation from .env:
     echo %CONDA_ACTIVATE_CMD%
-    start "FastAPI Server" cmd /k "%CONDA_ACTIVATE_CMD% && conda activate upscaller && python -m backend.api_server"
+    start "FastAPI Server" cmd /k "%CONDA_ACTIVATE_CMD% && conda activate upscaller && python -m backend-wrap.backend.api_server"
 ) else (
     echo Running normally through global Python environment...
-    start "FastAPI Server" cmd /k "python -m backend.api_server"
+    start "FastAPI Server" cmd /k "python -m backend-wrap.backend.api_server"
 )
 
 :: Start frontend

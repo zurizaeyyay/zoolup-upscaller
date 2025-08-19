@@ -138,7 +138,7 @@ if "!RESTARTED!"=="1" (
 )
 
 :: --- Set backend path ---
-set "BACKEND_DIR=backend"
+set "BACKEND_DIR=backend-wrap\backend"
 set "FRONTEND_DIR=frontend"
 set "CONDA_ACTIVATE_CMD="
 set "SKIP_PIP=0"
@@ -171,7 +171,7 @@ if "%SKIP_PIP%"=="0" (
 
 
 :: --- Install Real-ESRGAN via pip if not present ---
-if exist "backend\Real-ESRGAN" (
+if exist "%BACKEND_DIR%\Real-ESRGAN" (
     echo Real-ESRGAN folder found in backend, skipping pip install.
 ) else (
     echo Installing Real-ESRGAN from GitHub...

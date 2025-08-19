@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-BACKEND_DIR="backend"
+BACKEND_DIR="backend-wrap\backend"
 FRONTEND_DIR="frontend"
 CONDA_ACTIVATE_CMD=""
 BACKEND_PID=""
@@ -62,17 +62,17 @@ CONDA_PROFILE="$CONDA_BASE/etc/profile.d/conda.sh"
 if [[ -n "$CONDA_ACTIVATE_CMD" ]]; then
   echo "Using conda activation from .env:"
   echo "$CONDA_ACTIVATE_CMD"
-  nohup zsh -c "source $CONDA_PROFILE && $CONDA_ACTIVATE_CMD && python -m backend.api_server" > backend_server.log 2>&1 &
+  nohup zsh -c "source $CONDA_PROFILE && $CONDA_ACTIVATE_CMD && python -m backend-wrap.backend.api_server" > backend_server.log 2>&1 &
   BACKEND_PID=$!
   echo "Backend started with PID: $BACKEND_PID"
 elif [[ -f "$CONDA_PROFILE" ]]; then
   echo "Sourcing conda profile and activating 'upscaller' environment."
-  nohup zsh -c "source $CONDA_PROFILE && conda activate upscaller && python -m backend.api_server" > backend_server.log 2>&1 &
+  nohup zsh -c "source $CONDA_PROFILE && conda activate upscaller && python -m backend-wrap.backend.api_server" > backend_server.log 2>&1 &
   BACKEND_PID=$!
   echo "Backend started with PID: $BACKEND_PID"
 else
   echo "Conda profile script not found. Running normally through global Python environment..."
-  nohup python -m backend.api_server > backend_server.log 2>&1 &
+  nohup python -m backend-wrap.backend.api_server > backend_server.log 2>&1 &
   BACKEND_PID=$!
   echo "Backend started with PID: $BACKEND_PID"
 fi

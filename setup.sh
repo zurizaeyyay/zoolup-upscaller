@@ -2,7 +2,7 @@
 
 set -e
 
-BACKEND_DIR="backend"
+BACKEND_DIR="backend-wrap\backend"
 FRONTEND_DIR="frontend"
 CONDA_ACTIVATE_CMD=""
 

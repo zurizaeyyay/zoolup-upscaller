@@ -7,7 +7,7 @@
             "command": "cmd",
             "args": [
                 "/c",
-                "call \"${env:USERPROFILE}\\Tooling\\miniconda3\\Scripts\\activate.bat\" upscaller && python -m uvicorn backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
+                "call \"${env:USERPROFILE}\\Tooling\\miniconda3\\Scripts\\activate.bat\" upscaller && python -m uvicorn backend-wrap.backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
             ],
             "group": "build",
             "presentation": {
@@ -28,7 +28,7 @@
             "command": "zsh",
             "args": [
                 "-c",
-                "source $HOME/Tooling/miniconda3/etc/profile.d/conda.sh && conda activate upscaller && python -m uvicorn backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
+                "source $HOME/Tooling/miniconda3/etc/profile.d/conda.sh && conda activate upscaller && python -m uvicorn backend-wrap.backend.api_server:app --host 127.0.0.1 --port 8000 --reload --use-colors"
             ],
             "group": "build",
             "presentation": {

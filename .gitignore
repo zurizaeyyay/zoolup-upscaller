@@ -14,5 +14,8 @@ results/
 .DS_Store
 backend/Models
 
+dist/
+
+
 # Do NOT ignore .env in frontend/. Used for shared envs
 !frontend/.env
