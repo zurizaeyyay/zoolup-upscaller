@@ -3,3 +3,13 @@
 Backend todo:
 add to azure
 add github actions workflow for automatic deployment
+
+
+FIX TODO:
+- find where the zombie process is spawned
+    - Does not spawn when running backend_entry.Py
+    - Does not spawn when running running uvicorn in terminal
+    - Does spawn when spawning pyinstaller backend exe
+    - Does spawn when spawning pyinstaller backend exe in production
+- Alternatively make rigerousy tree culling of spawned pids
+- Fix bug introduced preventing elements being interacted

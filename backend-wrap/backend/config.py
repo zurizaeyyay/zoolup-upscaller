@@ -26,7 +26,7 @@ else:
 
 # API settings
 API_TITLE = os.getenv("API_TITLE", "Image Upscaler API")
-API_VERSION = os.getenv("API_VERSION", "0.1.0")
+API_VERSION = os.getenv("API_VERSION", "0.1.1")
 
 # Server settings
 HOST = os.getenv("HOST", "127.0.0.1")  # Use 0.0.0.0 for cloud deployment

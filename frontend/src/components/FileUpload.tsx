@@ -8,128 +8,127 @@ import { IMAGE_FORMATS } from '@/types/upscaler';
 import { gsap } from 'gsap';
 
 interface FileUploadProps {
-  fileName: string;
-  onFileUpload: (file: File) => void;
-  onDrop: (e: React.DragEvent) => void;
-  onDragOver: (e: React.DragEvent) => void;
+    fileName: string;
+    onFileUpload: (file: File) => void;
+    onDrop: (e: React.DragEvent) => void;
+    onDragOver: (e: React.DragEvent) => void;
 }
 
 const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
-  ({ fileName, onFileUpload, onDrop, onDragOver }, ref) => {
+    ({ fileName, onFileUpload, onDragOver }, ref) => {
+        const uploadAreaRef = useRef(null);
 
-    const uploadAreaRef = useRef(null);
+        // Animation for drag enter
+        const handleDragEnter = (e: React.DragEvent) => {
+            e.preventDefault();
+            gsap.to(uploadAreaRef.current, {
+                scale: 1.02,
+                borderColor: 'var(--primary-400)',
+                backgroundColor: 'rgba(248, 56, 146, 0.05)',
+                duration: 0.3,
+                ease: 'power2.out',
+            });
+        };
 
-    // Animation for drag enter
-    const handleDragEnter = (e: React.DragEvent) => {
-      e.preventDefault();
-      gsap.to(uploadAreaRef.current, {
-        scale: 1.02,
-        borderColor: 'var(--primary-400)',
-        backgroundColor: 'rgba(248, 56, 146, 0.05)',
-        duration: 0.3,
-        ease: 'power2.out',
-      });
-    };
+        // Animation for drag leave
+        const handleDragLeave = (e: React.DragEvent) => {
+            e.preventDefault();
+            gsap.to(uploadAreaRef.current, {
+                scale: 1,
+                borderColor: 'var(--border)',
+                backgroundColor: 'transparent',
+                duration: 0.3,
+                ease: 'power2.out',
+            });
+        };
 
-    // Animation for drag leave
-    const handleDragLeave = (e: React.DragEvent) => {
-      e.preventDefault();
-      gsap.to(uploadAreaRef.current, {
-        scale: 1,
-        borderColor: 'var(--border)',
-        backgroundColor: 'transparent',
-        duration: 0.3,
-        ease: 'power2.out',
-      });
-    };
+        const handleDrop = (e: React.DragEvent) => {
+            e.preventDefault();
+            handleDragLeave(e);
 
-    const handleDrop = (e: React.DragEvent) => {
-      e.preventDefault();
-      handleDragLeave(e);
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                onFileUpload(files[0]);
+            }
+        };
 
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        onFileUpload(files[0]);
-      }
-    };
+        // Handler to trigger file input click (web) or Electron dialog
+        const handleBrowseClick = useCallback(async () => {
+            if (typeof window !== 'undefined' && window.electronAPI) {
+                const filePath = await window.electronAPI.selectFile();
+                if (filePath) {
+                    // In Electron, read file and create a File object (best-effort)
+                    const base64 = await window.electronAPI.readFile(filePath);
+                    const binary = atob(base64);
+                    const len = binary.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+                    const blob = new Blob([bytes.buffer]);
+                    const name = filePath.split(/[\\/]/).pop() || 'image';
+                    const file = new File([blob], name);
+                    onFileUpload(file);
+                }
+            } else if (ref && 'current' in ref && ref.current) {
+                ref.current.click();
+            }
+        }, [ref, onFileUpload]);
 
-    // Handler to trigger file input click (web) or Electron dialog
-    const handleBrowseClick = useCallback(async () => {
-      if (typeof window !== 'undefined' && window.electronAPI) {
-        const filePath = await window.electronAPI.selectFile();
-        if (filePath) {
-          // In Electron, read file and create a File object (best-effort)
-          const base64 = await window.electronAPI.readFile(filePath);
-          const binary = atob(base64);
-          const len = binary.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-          const blob = new Blob([bytes.buffer]);
-          const name = filePath.split(/[\\/]/).pop() || 'image';
-          const file = new File([blob], name);
-          onFileUpload(file);
-        }
-      } else if (ref && 'current' in ref && ref.current) {
-        ref.current.click();
-      }
-    }, [ref, onFileUpload]);
+        // Separate handler for button to prevent bubbling (when it triggers twice)
+        const handleButtonClick = useCallback(
+            (e: React.MouseEvent) => {
+                e.stopPropagation(); // Prevent bubbling to parent div
+                handleBrowseClick();
+            },
+            [handleBrowseClick]
+        );
 
-    // Separate handler for button to prevent bubbling (when it triggers twice)
-    const handleButtonClick = useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent bubbling to parent div
-        handleBrowseClick();
-      },
-      [handleBrowseClick]
-    );
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Upload an Image</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div
+                        ref={uploadAreaRef}
+                        onDrop={handleDrop}
+                        onDragOver={(e) => {
+                            e.preventDefault();
+                            onDragOver(e);
+                        }}
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+                        onClick={handleBrowseClick}
+                    >
+                        <Upload className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                        <p className="mb-2 text-lg">Drag and drop file here</p>
+                        <p className="mb-4 text-sm text-gray-500">
+                            Limit 200MB per file • PNG, JPG, JPEG, TIFF, BMP, GIF, TIF
+                        </p>
+                        <Button variant="outline" type="button" onClick={handleButtonClick}>
+                            Browse files
+                        </Button>
+                        <input
+                            ref={ref}
+                            type="file"
+                            accept={IMAGE_FORMATS.join(',')}
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) onFileUpload(file);
+                            }}
+                            className="hidden"
+                        />
+                    </div>
 
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload an Image</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div
-            ref={uploadAreaRef}
-            onDrop={handleDrop}
-            onDragOver={(e) => {
-              e.preventDefault();
-              onDragOver(e);
-            }}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            className="cursor-pointer rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
-            onClick={handleBrowseClick}
-          >
-            <Upload className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-            <p className="mb-2 text-lg">Drag and drop file here</p>
-            <p className="mb-4 text-sm text-gray-500">
-              Limit 200MB per file • PNG, JPG, JPEG, TIFF, BMP, GIF, TIF
-            </p>
-            <Button variant="outline" type="button" onClick={handleButtonClick}>
-              Browse files
-            </Button>
-            <input
-              ref={ref}
-              type="file"
-              accept={IMAGE_FORMATS.join(',')}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onFileUpload(file);
-              }}
-              className="hidden"
-            />
-          </div>
-
-          {fileName && (
-            <div className="mt-4 rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
-              <p className="text-sm">Filename: {fileName}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  }
+                    {fileName && (
+                        <div className="mt-4 rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
+                            <p className="text-sm">Filename: {fileName}</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    }
 );
 
 FileUpload.displayName = 'FileUpload';

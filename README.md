@@ -71,11 +71,11 @@ cd backend-wrap
 pyinstaller .\fastapiApp.spec
 
 # Copy the standalone backend to frontend resources
-cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Win/x64
-cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Win/arm
-cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Apple/arm
-cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Apple/x64
-cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Linux
+cp -r dist/backend.exe ../frontend/resources/backends/Win/x64
+cp -r dist/backend.exe ../frontend/resources/backends/Win/arm
+cp -r dist/backend.exe ../frontend/resources/backends/Apple/arm
+cp -r dist/backend.exe ../frontend/resources/backends/Apple/x64
+cp -r dist/backend.exe ../frontend/resources/backends/Linux
 ```
 
 ### 2. Build Electron App

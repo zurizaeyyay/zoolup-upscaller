@@ -19,3 +19,4 @@ dist/
 
 # Do NOT ignore .env in frontend/. Used for shared envs
 !frontend/.env
+frontend/resources/backends/*

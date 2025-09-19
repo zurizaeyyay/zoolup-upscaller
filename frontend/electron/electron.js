@@ -14,7 +14,6 @@ const isPacked = app.isPackaged;
 // Load environment variables in the next.js style
 // 1. Always load base .env first (shared variables)
 const baseEnvPath = path.join(__dirname, '../.env');
-dotenv.config({ path: baseEnvPath });
 console.log('Loaded base .env from:', baseEnvPath);
 
 // 2. Conditionally load environment-specific .env (overrides)
@@ -22,10 +21,10 @@ const extraEnvPath = isPacked
     ? path.join(__dirname, '../.env.production')
     : path.join(__dirname, '../.env.local');
 if (fs.existsSync(extraEnvPath)) {
-    dotenv.config({ path: extraEnvPath });
+    dotenv.config({ path: [baseEnvPath, extraEnvPath] });
     console.log('Loaded environment-specific .env from:', extraEnvPath);
 } else {
-    console.warn('Environment-specific .env not found at:', extraEnvPath);
+    dotenv.config({ path: baseEnvPath });
 }
 
 const isDev = process.env.NODE_ENV === 'development' && !isPacked;
@@ -40,17 +39,17 @@ if (isDev) {
     process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
 
-app.whenReady().then(async () => {
-    if (!isDev || process.env.FROZEN_BACKEND) {
-        const started = startBackend();
-        if (started) {
+app.whenReady().then(() => {
+    if (!isDev || process.env.FROZEN_BACKEND == 'True') {
+        startBackend();
+        /* if (true) {
             try {
                 await waitForBackendReady({ port: 8000 });
                 console.log('Backend is ready.');
             } catch (err) {
                 console.error('Backend readiness check failed:', err.message);
             }
-        }
+        } */
     }
     createWindow();
 });
@@ -179,7 +178,7 @@ function resolveBinaryPath() {
     // Asssumes either in dev and running backend manually or
     // Not in dev and binary packaged to resources/backends/<platform>/<arch>/
     const bin_path =
-        isDev && !process.env.FROZEN_BACKEND
+        isDev && !process.env.FROZEN_BACKEND == 'True'
             ? null
             : path.join(resourcePth, 'backends', mappedPlatform, mappedArch, binaryName);
     return bin_path;
@@ -234,7 +233,7 @@ function stopBackendIfRunning() {
 
 /////////////////////////////////////////////////////////////
 // IPC handlers for native file handling if needed later
-ipcMain.handle('select-file', async () => {
+/* ipcMain.handle('select-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
@@ -256,4 +255,4 @@ ipcMain.handle('read-file', async (event, filePath) => {
     // Return a base64 string so renderer can construct a Blob if needed
     const data = await fs.promises.readFile(filePath);
     return data.toString('base64');
-});
+}); */

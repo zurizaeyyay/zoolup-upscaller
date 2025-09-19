@@ -10,7 +10,7 @@ import os
 import uuid
 from io import BytesIO
 from typing import Dict, Union, List
-
+from contextlib import asynccontextmanager
 
 import uvicorn
 import numpy as np
@@ -36,7 +36,20 @@ from .util_file import process_byte_input, generate_filename
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title=API_TITLE, version=API_VERSION)
+@asynccontextmanager
+async def lifespan(app):
+    # startup
+    logger.info(f"lifespan startup: pid={os.getpid()} ppid={os.getppid()}")
+    # initialize any resources here if needed
+    try:
+        logger.info(f"startup event: pid={os.getpid()} ppid={os.getppid()}")
+        yield 
+    finally:
+        # shutdown
+        logger.info(f"lifespan shutdown: pid={os.getpid()} ppid={os.getppid()}")
+        # cleanup resources here if needed
+
+app = FastAPI(title=API_TITLE, version=API_VERSION, lifespan=lifespan)
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
@@ -67,6 +80,8 @@ class UpscalerState:
         return self.models[model_key]
 
 state = UpscalerState()
+
+logger.info(f"api_server module loaded: pid={os.getpid()} ppid={os.getppid()}")
 
 # WebSocket connection manager
 @app.websocket("/ws/{job_id}")
@@ -351,4 +366,6 @@ async def cleanup_job(job_id: str):
     return {"message": "Job cleaned up successfully"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=HOST, port=PORT, log_level=LOG_LEVEL)
+    config = uvicorn.Config(app, host=HOST, port=PORT, log_level=LOG_LEVEL)
+    server = uvicorn.Server(config)
+    server.run()
