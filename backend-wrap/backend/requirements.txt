@@ -3,6 +3,7 @@ opencv-python
 Pillow
 torch>=1.7
 torchvision>=0.8.0
+hf_xet
 tqdm
 huggingface-hub>=0.25.2
 git+https://github.com/zurizaeyyay/Real-ESRGAN.git@master#egg=RealESRGAN

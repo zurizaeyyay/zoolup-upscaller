@@ -1,9 +1,11 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const net = require('net');
 const { spawn } = require('child_process');
-const isDev = process.env.NODE_ENV === 'development';
+
 const isPacked = app.isPackaged;
+const isDev = process.env.NODE_ENV === 'development' && !isPacked;
 const openDevtools = process.env.OPEN_DEVTOOLS === 'true' && !isPacked;
 
 let mainWindow;
@@ -14,6 +16,37 @@ let backendProcess = null;
 if (isDev) {
     process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
+
+app.whenReady().then(async () => {
+    if (!isDev || process.env.FROZEN_BACKEND) {
+        const started = startBackend();
+        if (started) {
+            try {
+                await waitForBackendReady({ port: 8000 });
+                console.log('Backend is ready.');
+            } catch (err) {
+                console.error('Backend readiness check failed:', err.message);
+            }
+        }
+    }
+    createWindow();
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+    }
+});
+
+app.on('before-quit', () => {
+    stopBackendIfRunning();
+});
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -65,49 +98,94 @@ function createWindow() {
     });
 }
 
-app.whenReady().then(createWindow);
+// Trys to test backend connection
+// Will keep trying connection until timeout reached
+function waitForBackendReady({
+    host = '127.0.0.1',
+    port = 8000,
+    timeoutMs = 15000,
+    intervalMs = 250,
+}) {
+    const deadline = Date.now() + timeoutMs;
+    return new Promise((resolve, reject) => {
+        (function tryConnect() {
+            const socket = net.connect({ host, port }, () => {
+                socket.end();
+                resolve(true);
+            });
+            socket.on('error', () => {
+                socket.destroy();
+                if (Date.now() > deadline) {
+                    reject(
+                        new Error(`Backend not reachable at ${host}:${port} within ${timeoutMs}ms`)
+                    );
+                } else {
+                    setTimeout(tryConnect, intervalMs);
+                }
+            });
+        })();
+    });
+}
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
-
-app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-    }
-});
-
-// In production, you can optionally spawn a bundled backend (e.g., a PyInstaller exe)
 // Configure environment variable BACKEND_BINARY_PATH to an absolute or app.asar.unpacked-relative path
-function startBackendIfAvailable() {
-    try {
-        const platform = process.platform; // 'win32' | 'darwin' | 'linux'
-        const arch = process.arch; // 'x64' | 'arm64' | ...
-        const binaryName = platform === 'win32' ? 'backend.exe' : 'backend';
+function resolveBinaryPath() {
+    // Allow override from env for local testing
+    if (process.env.BACKEND_BINARY_PATH) return process.env.BACKEND_BINARY_PATH;
 
-        // Prefer env override; otherwise resolve from packaged resources
-        const defaultPath = isDev
+    // electron-builder extraResources land under process.resourcesPath
+    const platform = process.platform; // 'win32' | 'darwin' | 'linux'
+    const arch = process.arch; // 'x64' | 'arm64' | ...
+    const binaryName = platform === 'win32' ? 'backend.exe' : 'backend';
+
+    // Folder mapping for cleanliness
+    const process_map = {
+        win32: 'Win',
+        darwin: 'Apple',
+        linux: 'Linux',
+    };
+    const mappedPlatform = process_map[platform] || platform;
+    const mappedArch = arch === 'arm64' ? 'arm' : arch;
+
+    // Asssumes either in dev and running backend manually or
+    // Not in dev and binary packaged to resources/backends/<platform>/<arch>/
+    const bin_path =
+        isDev && !process.env.FROZEN_BACKEND
             ? null
-            : path.join(process.resourcesPath, 'backends', platform, arch, binaryName);
+            : path.join(process.resourcesPath, 'backends', mappedPlatform, mappedArch, binaryName);
+    return bin_path;
+}
 
-        const backendPath = process.env.BACKEND_BINARY_PATH || defaultPath;
-        if (!backendPath) return;
-        if (!fs.existsSync(backendPath)) {
+// Spawn backend process in silently background when in production
+// Otherwise if in development start in foreground for easier debugging
+// NOTE: FROZEN_BACKEND will need to be set to true to test frozen backend in dev
+function startBackend() {
+    const backendPath = resolveBinaryPath();
+    try {
+        if (!backendPath || !fs.existsSync(backendPath)) {
             console.warn('Backend binary not found at', backendPath);
-            return;
+            return false;
         }
 
-        backendProcess = spawn(backendPath, [], { stdio: 'pipe' });
-        backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString()));
-        backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString()));
+        if (!isDev) {
+            // Spawn quietly; inherit no stdio, hide window on Windows
+            backendProcess = spawn(backendPath, [], {
+                stdio: 'ignore',
+                windowsHide: true,
+            });
+        } else {
+            backendProcess = spawn(backendPath, [], { stdio: 'pipe' });
+            backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString()));
+            backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString()));
+        }
+
         backendProcess.on('exit', (code) => {
-            console.log('Backend exited with code', code);
+            console.log('Backend exited:', code);
             backendProcess = null;
         });
+        return true;
     } catch (e) {
-        console.error('Failed to start backend:', e);
+        console.error('Failed to spawn backend:', e);
+        return false;
     }
 }
 
@@ -115,24 +193,15 @@ function stopBackendIfRunning() {
     try {
         if (backendProcess && !backendProcess.killed) {
             backendProcess.kill();
-            backendProcess = null;
         }
     } catch (e) {
         console.error('Failed to stop backend:', e);
     }
+    backendProcess = null;
 }
 
-app.on('before-quit', () => {
-    stopBackendIfRunning();
-});
-
-if (!isDev) {
-    app.whenReady().then(() => {
-        startBackendIfAvailable();
-    });
-}
-
-// IPC handlers for future Python backend communication
+/////////////////////////////////////////////////////////////
+// IPC handlers for native file handling if needed later
 ipcMain.handle('select-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
@@ -156,8 +225,3 @@ ipcMain.handle('read-file', async (event, filePath) => {
     const data = await fs.promises.readFile(filePath);
     return data.toString('base64');
 });
-
-// Future: Add handlers for Python backend communication
-// ipcMain.handle('upscale-image', async (event, imagePath, options) => {
-//   // Call Python backend here
-// });

@@ -26,7 +26,7 @@ binaries = []
 hiddenimports = [
     'backend',  # ensure top-level package is present
     'uvicorn', 'fastapi', 'websockets', 'torch', 'torchvision', 'RealESRGAN',
-    'python_multipart', 'cv2', 'PIL', 'tqdm'
+    'python_multipart', 'cv2', 'PIL', 'tqdm', 'hf_xet'
 ]
 # Collect backend submodules now that SPEC_DIR is on sys.path
 hiddenimports += collect_submodules('huggingface_hub')
