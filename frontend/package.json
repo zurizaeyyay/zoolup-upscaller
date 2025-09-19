@@ -5,7 +5,7 @@
     "description": "Upscale Images with AI",
     "author": "Zuri Ash Zaey",
     "private": true,
-    "main": "public/electron.js",
+    "main": "electron/electron.js",
     "homepage": "./",
     "scripts": {
         "dev": "next dev --turbopack",
