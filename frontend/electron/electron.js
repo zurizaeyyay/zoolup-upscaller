@@ -2,9 +2,32 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
+const dotenv = require('dotenv');
 const { spawn } = require('child_process');
+const treeKill = require('tree-kill');
+
+// Prevent multiple instances
+app.requestSingleInstanceLock();
 
 const isPacked = app.isPackaged;
+
+// Load environment variables in the next.js style
+// 1. Always load base .env first (shared variables)
+const baseEnvPath = path.join(__dirname, '../.env');
+dotenv.config({ path: baseEnvPath });
+console.log('Loaded base .env from:', baseEnvPath);
+
+// 2. Conditionally load environment-specific .env (overrides)
+const extraEnvPath = isPacked
+    ? path.join(__dirname, '../.env.production')
+    : path.join(__dirname, '../.env.local');
+if (fs.existsSync(extraEnvPath)) {
+    dotenv.config({ path: extraEnvPath });
+    console.log('Loaded environment-specific .env from:', extraEnvPath);
+} else {
+    console.warn('Environment-specific .env not found at:', extraEnvPath);
+}
+
 const isDev = process.env.NODE_ENV === 'development' && !isPacked;
 const openDevtools = process.env.OPEN_DEVTOOLS === 'true' && !isPacked;
 
@@ -45,6 +68,10 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
+    stopBackendIfRunning();
+});
+
+process.on('exit', () => {
     stopBackendIfRunning();
 });
 
@@ -146,18 +173,21 @@ function resolveBinaryPath() {
     const mappedPlatform = process_map[platform] || platform;
     const mappedArch = arch === 'arm64' ? 'arm' : arch;
 
+    // Handle resource path resolving to node modules when not packaged
+    resourcePth = isPacked ? process.resourcesPath : path.join(__dirname, '../resources');
+
     // Asssumes either in dev and running backend manually or
     // Not in dev and binary packaged to resources/backends/<platform>/<arch>/
     const bin_path =
         isDev && !process.env.FROZEN_BACKEND
             ? null
-            : path.join(process.resourcesPath, 'backends', mappedPlatform, mappedArch, binaryName);
+            : path.join(resourcePth, 'backends', mappedPlatform, mappedArch, binaryName);
     return bin_path;
 }
 
 // Spawn backend process in silently background when in production
 // Otherwise if in development start in foreground for easier debugging
-// NOTE: FROZEN_BACKEND will need to be set to true to test frozen backend in dev
+// NOTE: FROZEN_BACKEND env var will need to be set to true to test frozen backend in dev
 function startBackend() {
     const backendPath = resolveBinaryPath();
     try {
@@ -189,9 +219,11 @@ function startBackend() {
     }
 }
 
+// TODO: FIX Wierd second zombie process spawn when using frozen exe in dev
 function stopBackendIfRunning() {
     try {
         if (backendProcess && !backendProcess.killed) {
+            console.log('Stopping backend process...');
             backendProcess.kill();
         }
     } catch (e) {

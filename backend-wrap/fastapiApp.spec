@@ -57,7 +57,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='upscaler-backend',
+    name='backend',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
