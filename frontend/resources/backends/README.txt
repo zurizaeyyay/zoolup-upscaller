@@ -1,7 +1,8 @@
 Place platform-specific PyInstaller outputs here before packaging.
-- Windows: resources/backends/win32/x64/backend.exe
-- macOS Intel: resources/backends/darwin/x64/backend
-- macOS Apple Silicon: resources/backends/darwin/arm64/backend
-- Linux: resources/backends/linux/x64/backend
+- Windows x64: resources/backends/win/x64
+- Windows Arm: resources/backends/win/arm
+- macOS Intel: resources/backends/apple/x64
+- macOS Apple Silicon: resources/backends/apple/arm
+- Linux x64: resources/backends/linux
 
 The Electron main process resolves the path at runtime.

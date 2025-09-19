@@ -7,151 +7,154 @@ const isPacked = app.isPackaged;
 const openDevtools = process.env.OPEN_DEVTOOLS === 'true' && !isPacked;
 
 let mainWindow;
+let webContent;
 let backendProcess = null;
 
 // Suppress security warnings only in development to avoid console noise
 if (isDev) {
-  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+    process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 800,
-    minWidth: 700,
-    minHeight: 500,
-    title: 'Zoolup Image Upscaler',
-    icon: path.join(__dirname, 'icon.png'),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js'),
-    },
-    show: false,
-  });
+    mainWindow = new BrowserWindow({
+        width: 1600,
+        height: 800,
+        minWidth: 700,
+        minHeight: 500,
+        title: 'Zoolup Image Upscaler',
+        icon: path.join(__dirname, 'icon.png'),
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: false,
+            preload: path.join(__dirname, 'preload.js'),
+        },
+        show: false,
+    });
 
-  // Try to detect the Next.js dev server port, default to 3000
-  const devPort = process.env.NEXT_DEV_PORT || '3000';
-  const startUrl = isDev
-    ? `http://localhost:${devPort}`
-    : `file://${path.join(__dirname, '../out/index.html')}`;
+    webContent = mainWindow.webContents;
 
-  console.log('Loading URL:', startUrl);
+    // Try to detect the Next.js dev server port, default to 3000
+    const devPort = process.env.NEXT_DEV_PORT || '3000';
+    const startUrl = isDev
+        ? `http://localhost:${devPort}`
+        : `file://${path.join(__dirname, '../out/index.html')}`;
 
-  mainWindow.loadURL(startUrl);
+    console.log('Loading URL:', startUrl);
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    mainWindow.loadURL(startUrl);
 
-    if (openDevtools) {
-      mainWindow.webContents.openDevTools();
-    }
-  });
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+        if (openDevtools) {
+            webContent.openDevTools();
+        }
+    });
 
-  // Handle navigation for SPA
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    if (errorCode === -6) {
-      // ERR_FILE_NOT_FOUND
-      mainWindow.loadURL(startUrl);
-    }
-  });
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
+
+    // Handle navigation for SPA
+    webContent.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+        if (errorCode === -6) {
+            // ERR_FILE_NOT_FOUND
+            mainWindow.loadURL(startUrl);
+        }
+    });
 }
 
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+    if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+    }
 });
 
 // In production, you can optionally spawn a bundled backend (e.g., a PyInstaller exe)
 // Configure environment variable BACKEND_BINARY_PATH to an absolute or app.asar.unpacked-relative path
 function startBackendIfAvailable() {
-  try {
-    const platform = process.platform; // 'win32' | 'darwin' | 'linux'
-    const arch = process.arch; // 'x64' | 'arm64' | ...
-    const binaryName = platform === 'win32' ? 'backend.exe' : 'backend';
+    try {
+        const platform = process.platform; // 'win32' | 'darwin' | 'linux'
+        const arch = process.arch; // 'x64' | 'arm64' | ...
+        const binaryName = platform === 'win32' ? 'backend.exe' : 'backend';
 
-    // Prefer env override; otherwise resolve from packaged resources
-    const defaultPath = isDev
-      ? null
-      : path.join(process.resourcesPath, 'backends', platform, arch, binaryName);
+        // Prefer env override; otherwise resolve from packaged resources
+        const defaultPath = isDev
+            ? null
+            : path.join(process.resourcesPath, 'backends', platform, arch, binaryName);
 
-    const backendPath = process.env.BACKEND_BINARY_PATH || defaultPath;
-    if (!backendPath) return;
-    if (!fs.existsSync(backendPath)) {
-      console.warn('Backend binary not found at', backendPath);
-      return;
+        const backendPath = process.env.BACKEND_BINARY_PATH || defaultPath;
+        if (!backendPath) return;
+        if (!fs.existsSync(backendPath)) {
+            console.warn('Backend binary not found at', backendPath);
+            return;
+        }
+
+        backendProcess = spawn(backendPath, [], { stdio: 'pipe' });
+        backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString()));
+        backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString()));
+        backendProcess.on('exit', (code) => {
+            console.log('Backend exited with code', code);
+            backendProcess = null;
+        });
+    } catch (e) {
+        console.error('Failed to start backend:', e);
     }
-
-    backendProcess = spawn(backendPath, [], { stdio: 'pipe' });
-    backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString()));
-    backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString()));
-    backendProcess.on('exit', (code) => {
-      console.log('Backend exited with code', code);
-      backendProcess = null;
-    });
-  } catch (e) {
-    console.error('Failed to start backend:', e);
-  }
 }
 
 function stopBackendIfRunning() {
-  try {
-    if (backendProcess && !backendProcess.killed) {
-      backendProcess.kill();
-      backendProcess = null;
+    try {
+        if (backendProcess && !backendProcess.killed) {
+            backendProcess.kill();
+            backendProcess = null;
+        }
+    } catch (e) {
+        console.error('Failed to stop backend:', e);
     }
-  } catch (e) {
-    console.error('Failed to stop backend:', e);
-  }
 }
 
 app.on('before-quit', () => {
-  stopBackendIfRunning();
+    stopBackendIfRunning();
 });
 
 if (!isDev) {
-  app.whenReady().then(() => {
-    startBackendIfAvailable();
-  });
+    app.whenReady().then(() => {
+        startBackendIfAvailable();
+    });
 }
 
 // IPC handlers for future Python backend communication
 ipcMain.handle('select-file', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
-  });
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
+    });
 
-  return result.filePaths[0];
+    return result.filePaths[0];
 });
 
 ipcMain.handle('save-file', async (event, defaultPath) => {
-  const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath,
-    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
-  });
+    const result = await dialog.showSaveDialog(mainWindow, {
+        defaultPath,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif'] }],
+    });
 
-  return result.filePath;
+    return result.filePath;
 });
 
 ipcMain.handle('read-file', async (event, filePath) => {
-  // Return a base64 string so renderer can construct a Blob if needed
-  const data = await fs.promises.readFile(filePath);
-  return data.toString('base64');
+    // Return a base64 string so renderer can construct a Blob if needed
+    const data = await fs.promises.readFile(filePath);
+    return data.toString('base64');
 });
 
 // Future: Add handlers for Python backend communication

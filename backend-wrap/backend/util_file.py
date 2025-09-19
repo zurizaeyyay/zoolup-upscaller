@@ -60,16 +60,51 @@ def generate_filename(filename, scale_list, resample_mode):
     return new_filename
 
 
+def _resource_path(parts: str):
+    """
+    Resolve a data path in both frozen and unfrozen runs
+    Frozen states from pyinstaller:
+    - onefile: extracted to sys._MEIPASS
+    - onedir: placed next to the executable
+    Unfrozen states:
+    - dev: relative to this file
+    """
+    if getattr(sys, 'frozen', False):
+        base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    else:
+        base = os.path.dirname(__file__)
+    return os.path.join(base, parts)
+
 def import_model():
-    # Fall back to local directory import
-    realesrgan_path = os.path.join(os.path.dirname(__file__), 'Real-ESRGAN')
-    if realesrgan_path not in sys.path:
-        sys.path.insert(0, realesrgan_path)
+    """
+    Try to import RealESRGAN
+    - First tries from pip
+    - Fall back to local directory import if not found
+    - Added checks to ensure compatibility with PyInstaller builds 
+        which have frozen data folders with different path
+    """ 
+    try:
+        import RealESRGAN  # type: ignore
+        print("RealESRGAN imported from bundled/installed package.")
+        return
+    except Exception:
+        pass
+    
+    # Fallback use data folder bundled via PyInstaller data or detected locally in dev
+    realesrgan_dir = _resource_path('Real-ESRGAN')
+    if os.path.isdir(realesrgan_dir) and realesrgan_dir not in sys.path:
+        sys.path.insert(0, realesrgan_dir)
+
     try:
         import RealESRGAN # type: ignore
         print("RealESRGAN imported from local directory.")
     except ImportError:
-        raise ImportError("RealESRGAN not found. Please install it via pip or place it in the 'Real-ESRGAN' directory.")
+        raise ImportError(
+            "RealESRGAN not found. Ensure it is installed or bundled as data.\n"
+            f"Checked: {realesrgan_dir}\n"
+            f"sys.frozen={getattr(sys,'frozen',False)}, "
+            f"_MEIPASS={getattr(sys,'_MEIPASS',None)}, exe={sys.executable}"
+            )
 
 
 

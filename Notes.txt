@@ -1,7 +1,5 @@
-- develop someway to introduce more grain and texture to upscalled image
+- Add and layer other upscalling models for different purposes (i.e anime or grain detail)
 
 Backend todo:
-Containerize app
 add to azure
-add secrets if any
 add github actions workflow for automatic deployment

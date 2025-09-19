@@ -1,4 +1,12 @@
-# Quick Setup:
+# Trying it out
+
+1. See the releases area
+2. Download the file for your system
+3. Let me know if you enjoyed or have feedback :)
+
+# Dev Instructions:
+
+## Quick Setup
 
 1. Clone or download this repo
 2. Use the setup script to automatically install the required prerequistites
@@ -6,7 +14,7 @@
 ### Windows
 
 -   Click the **setup.bat** file in the root and then press enter to run the app
--   or
+    or
 -   if prerequisities are installed you can try running the **launch.bat** in the root
 
 ### MacOS
@@ -14,7 +22,7 @@
 -   Note: if you dont want the dependancies and python 3.12 installed globalled created a
     conda env called "upscaller" with python 3.12 installed
 -   Open the terminal and run **./setup.sh** file in the project root
--   or
+    or
 -   if prerequisities are installed you can try running the **./launch.sh**
 
 # Prerequistites:
@@ -27,7 +35,7 @@
 -   (optional) Ensure you have [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64&target_version=11&target_type=exe_local) installed and running correctly for GPU upscalling (if you have an NVIDIA GPU)
 -   (optional) install [pnpm](https://pnpm.io/installation). If not dev inclined run all commands that say `pnpm` with `npm` instead (this one is already installed for you above)
 
-# Running the Dev Environment Manually:
+## Running the Dev Environment Manually:
 
 -   Install the python packages in requirments.txt (optionally inside a virtual environment)
     -   `pip install --no-cache-dir -r /code/requirements.txt`
@@ -46,34 +54,28 @@
 
 ## Prerequisites for Building:
 
--   Complete the "Quick Setup" above first
+-   Complete the "Quick Setup" or "Manual Setup" above first
 -   Install PyInstaller: `pip install pyinstaller`
 -   Ensure you're in the `upscaller` conda environment (if using conda)
 
 ### 1. Create Standalone Backend
 
-Note: I had issues with the backend imports in docker when i didnt use module entry and so backend.api_server required.
-However pyinstaller doesn't like this so a entry wrapper py file is included in the new folder
+Note: I had import issues when containerizing the backend with docker. I found python module entry to the backend the best way and so calling backend.api_server is required to start the backend.
+However pyinstaller doesn't like this so I use an entry wrapper py file and also a wrapper folder. This ensured Docker, Pyinstaller, VScode tasks and dev runs are all compatible with each other.
 
 ```bash
-# Navigate to backend directory
-cd backend
+# Navigate to backend-wrap directory
+cd backend-wrap
 
-# Create standalone executable (no Python required for users)
-pyinstaller --onedir --name upscaler-backend \
-  --add-data "Real-ESRGAN:Real-ESRGAN" \
-  --add-data "../weights:weights" \
-  --hidden-import uvicorn \
-  --hidden-import fastapi \
-  --hidden-import websockets \
-  --hidden-import torch \
-  --hidden-import torchvision \
-  --hidden-import RealESRGAN \
-  --clean \
-  api_server.py
+# Create standalone executable via the pyinstaller spec file.
+pyinstaller .\fastapiApp.spec
 
 # Copy the standalone backend to frontend resources
-cp -r dist/upscaler-backend ../frontend/backend-bundle/
+cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Win/x64
+cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Win/arm
+cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Apple/arm
+cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Apple/x64
+cp -r dist/upscaler-backend.exe ../frontend/resources/backends/Linux
 ```
 
 ### 2. Build Electron App
@@ -82,7 +84,7 @@ cp -r dist/upscaler-backend ../frontend/backend-bundle/
 # Navigate to frontend directory
 cd frontend
 
-# Generate icons (Mac only, first time)
+# Generate icons (Mac only, first time) NOTE: Script will install imagemagick via brew
 cd public && ./generate_icons.sh && cd ..
 
 # Install dependencies
