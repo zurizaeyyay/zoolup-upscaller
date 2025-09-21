@@ -12,4 +12,3 @@ FIX TODO:
     - Does spawn when spawning pyinstaller backend exe
     - Does spawn when spawning pyinstaller backend exe in production
 - Alternatively make rigerousy tree culling of spawned pids
-- Fix bug introduced preventing elements being interacted

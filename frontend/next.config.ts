@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
         unoptimized: true,
     },
     distDir: 'out',
-    assetPrefix: './', // crucial for loading assets when building electron app
     webpack: (config, { isServer }) => {
         // Prevent bundling Node/Electron modules in the client build
         if (!isServer) {
