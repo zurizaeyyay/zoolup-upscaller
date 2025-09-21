@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
         unoptimized: true,
     },
     distDir: 'out',
+    // crucial for loading assets when building electron app
+    // "./" Does not work properly in dev due to static paths
+    assetPrefix: process.env.NODE_ENV === 'production' ? './' : '',
     webpack: (config, { isServer }) => {
         // Prevent bundling Node/Electron modules in the client build
         if (!isServer) {
