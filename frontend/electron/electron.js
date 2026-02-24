@@ -43,14 +43,14 @@ if (isDev) {
 app.whenReady().then(async () => {
     if (!isDev || process.env.FROZEN_BACKEND == 'True') {
         const backend = startBackend();
-        /*  if (backend) {
+        if (backend) {
             try {
-                await waitForBackendReady({ port: 8000 });
+                await backendReady({ port: 8000 });
                 console.log('Backend is ready.');
             } catch (err) {
                 console.error('Backend readiness check failed:', err.message);
             }
-        } */
+        }
     }
     createWindow();
 });
@@ -63,7 +63,7 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        // Note: Be careful of creating window here as the backend might not be ready
     }
 });
 
@@ -107,6 +107,7 @@ function createWindow() {
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        mainWindow.focus();
         if (openDevtools) {
             webContent.openDevTools();
         }
@@ -125,33 +126,27 @@ function createWindow() {
     });
 }
 
-// Trys to test backend connection
+// Trys to test backend connection to prevent window loading
 // Will keep trying connection until timeout reached
-function waitForBackendReady({
+async function backendReady({
     host = '127.0.0.1',
     port = 8000,
-    timeoutMs = 15000,
+    timeoutMs = 20000,
     intervalMs = 250,
 }) {
     const deadline = Date.now() + timeoutMs;
-    return new Promise((resolve, reject) => {
-        (function tryConnect() {
-            const socket = net.connect({ host, port }, () => {
-                socket.end();
-                resolve(true);
-            });
-            socket.on('error', () => {
-                socket.destroy();
-                if (Date.now() > deadline) {
-                    reject(
-                        new Error(`Backend not reachable at ${host}:${port} within ${timeoutMs}ms`)
-                    );
-                } else {
-                    setTimeout(tryConnect, intervalMs);
-                }
-            });
-        })();
-    });
+    while (Date.now() < deadline) {
+        try {
+            const response = await fetch(`http://${host}:${port}/`);
+            const data = await response.json();
+            if (data.message) {
+                return true; // backend is ready
+            }
+        } catch (error) {}
+        // Wait for time interval before retrying
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    throw new Error(`Backend not reachable at ${host}:${port} within ${timeoutMs}ms`);
 }
 
 // Configure environment variable BACKEND_BINARY_PATH to an absolute or app.asar.unpacked-relative path
@@ -167,7 +162,7 @@ function resolveBinaryPath() {
     // Folder mapping for cleanliness
     const process_map = {
         win32: 'Win',
-        darwin: 'Apple',
+        darwin: 'Apple ',
         linux: 'Linux',
     };
     const mappedPlatform = process_map[platform] || platform;

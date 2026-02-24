@@ -3,12 +3,15 @@
 Backend todo:
 add to azure
 add github actions workflow for automatic deployment
+add a plist and other mac files for the macos build
+test electron.js changes on windows before publishing mac build
 
 
-FIX TODO:
-- find where the zombie process is spawned
+Fixed Zombie process (further info incase needed)
+- main process appears to be doing nothing (i.e the zombie)
+- Process spawns when....
     - Does not spawn when running backend_entry.Py
     - Does not spawn when running running uvicorn in terminal
     - Does spawn when spawning pyinstaller backend exe
     - Does spawn when spawning pyinstaller backend exe in production
-- Alternatively make rigerousy tree culling of spawned pids
+- Zombie process created from pyinstaller. Sovled with rigourus culling

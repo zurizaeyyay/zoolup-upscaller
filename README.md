@@ -19,8 +19,8 @@
 
 ### MacOS
 
--   Note: if you dont want the dependancies and python 3.12 installed globalled created a
-    conda env called "upscaller" with python 3.12 installed
+-   Note: if you dont want the dependancies and python 3.12 installed globally create a
+    Conda environment called "upscaller" with python 3.12 installed
 -   Open the terminal and run **./setup.sh** file in the project root
     or
 -   if prerequisities are installed you can try running the **./launch.sh**
@@ -73,9 +73,9 @@ pyinstaller .\fastapiApp.spec
 # Copy the standalone backend to frontend resources
 cp -r dist/backend.exe ../frontend/resources/backends/Win/x64
 cp -r dist/backend.exe ../frontend/resources/backends/Win/arm
-cp -r dist/backend.exe ../frontend/resources/backends/Apple/arm
-cp -r dist/backend.exe ../frontend/resources/backends/Apple/x64
-cp -r dist/backend.exe ../frontend/resources/backends/Linux
+cp -r ./dist/backend ../frontend/resources/backends/Apple\ /arm/
+cp -r ./dist/backend ../frontend/resources/backends/Apple\ /x64/
+cp -r ./dist/backend ../frontend/resources/backends/Linux
 ```
 
 ### 2. Build Electron App
