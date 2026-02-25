@@ -66,6 +66,8 @@
     "build": {
         "appId": "com.zoolup.upscaller",
         "productName": "Zoolup Image Upscaler",
+        "asar": true,
+        "asarUnpack": "**/backends/**/*",
         "directories": {
             "output": "dist",
             "buildResources": "build"
@@ -107,12 +109,14 @@
                 }
             ],
             "icon": "icon.icns",
+            "mergeASARs": false,
             "hardenedRuntime": true,
             "gatekeeperAssess": false,
             "entitlements": "build/entitlements.mac.plist",
             "entitlementsInherit": "build/entitlements.mac.plist",
             "artifactName": "${productName}-${version}-${arch}.${ext}",
-            "minimumSystemVersion": "10.15.0"
+            "minimumSystemVersion": "10.15.0",
+            "x64ArchFiles": "*"
         },
         "win": {
             "target": [

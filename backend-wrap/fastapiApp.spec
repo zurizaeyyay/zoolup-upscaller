@@ -3,6 +3,7 @@ from pathlib import Path
 from PyInstaller.building.build_main import Analysis, PYZ, EXE
 from PyInstaller.utils.hooks import collect_submodules
 import sys
+import os
 
 # Paths
 # Resolve paths relative to the executing spec location so builds are deterministic
@@ -35,6 +36,8 @@ hiddenimports += collect_submodules('backend')
 
 # Use the wrapper script located next to this spec so runpy.run_module finds backend as a package
 ENTRY_WRAPPER = SPEC_DIR / 'backend_entry.py'
+
+TARGET_ARCH = os.environ.get('TARGET_ARCH', None)
 
 a = Analysis(
     [str(ENTRY_WRAPPER)],
