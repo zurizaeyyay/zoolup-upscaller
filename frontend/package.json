@@ -96,19 +96,17 @@
                 {
                     "target": "dmg",
                     "arch": [
-                        "x64",
-                        "arm64"
+                        "universal"
                     ]
                 },
                 {
                     "target": "zip",
                     "arch": [
-                        "x64",
-                        "arm64"
+                        "universal"
                     ]
                 }
             ],
-            "icon": "public/icon.icns",
+            "icon": "icon.icns",
             "hardenedRuntime": true,
             "gatekeeperAssess": false,
             "entitlements": "build/entitlements.mac.plist",
