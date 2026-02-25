@@ -6,6 +6,8 @@ add github actions workflow for automatic deployment
 add a plist and other mac files for the macos build
 test electron.js changes on windows before publishing mac build
 
+- Investigate issue with backend not running on mac build. 
+        (checked and issue present in non-asar build, possibly mac secuirty issues or bundled paths differing on mac)
 
 Fixed Zombie process (further info incase needed)
 - main process appears to be doing nothing (i.e the zombie)
